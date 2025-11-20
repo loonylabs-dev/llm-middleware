@@ -1,3 +1,59 @@
+## [2.10.0] - 2025-11-20
+
+### ✨ Feature: Pass LLM Usage Data to AI Results
+
+This release enhances the `BaseAIUseCase` to propagate detailed LLM usage information (like input/output tokens and estimated cost) directly to the `BaseAIResult` object. This ensures that downstream applications, such as `scribomate`, can accurately log and utilize actual token counts from the AI model's response, rather than relying on fallback values.
+
+#### Added
+
+- **`usage` parameter in `BaseAIUseCase.createResult()`**: The abstract method `createResult` now includes an optional `usage` parameter, allowing concrete use cases to receive comprehensive token usage data.
+- **`usage` property in `BaseAIResult` interface**: The `BaseAIResult` interface has been extended with an optional `usage` property to type-safely carry the LLM usage information.
+- **Propagation of `result.usage`**: The `execute` method in `BaseAIUseCase` now passes the `result.usage` object directly to the `createResult` method.
+
+#### Benefits
+
+- ✅ **Accurate Token Logging**: Enables applications to log actual token counts from LLM responses, resolving issues where fallback values were incorrectly stored.
+- ✅ **Improved Cost Tracking**: Provides necessary data for precise cost accounting and credit deduction in consuming applications.
+- ✅ ✅ **Enhanced Data Flow**: Ensures that valuable LLM usage metadata is consistently available throughout the application's data processing pipeline.
+
+### Migration Guide
+
+**No breaking changes** for existing implementations that do not utilize the new `usage` parameter or property.
+
+**For concrete `BaseAIUseCase` implementations:**
+If your custom use case needs access to the LLM usage data, update your `createResult` method signature to include the new `usage` parameter:
+
+```typescript
+protected createResult(
+  content: string,
+  usedPrompt: string,
+  thinking?: string,
+  usage?: { inputTokens?: number; outputTokens?: number; totalTokens?: number; estimatedCostUsd?: number; }
+): MyCustomResult {
+  const result: MyCustomResult = {
+    // ... other properties
+    usage, // Assign the usage data
+  };
+  return result;
+}
+```
+
+**For custom `BaseAIResult` extensions:**
+If you have custom result interfaces extending `BaseAIResult` and wish to store the usage data, ensure your interface explicitly includes the `usage` property:
+
+```typescript
+export interface MyCustomResult extends BaseAIResult {
+  // ... other properties
+  usage?: {
+    inputTokens?: number;
+    outputTokens?: number;
+    totalTokens?: number;
+    estimatedCostUsd?: number;
+  };
+}
+```
+
+---
 # Changelog
 
 All notable changes to this project will be documented in this file.

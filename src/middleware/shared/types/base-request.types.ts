@@ -26,4 +26,10 @@ export interface BaseAIResult {
   model: string;
   usedPrompt: string;
   thinking?: string;
+  usage?: {
+    inputTokens?: number;
+    outputTokens?: number;
+    totalTokens?: number;
+    estimatedCostUsd?: number;
+  };
 }

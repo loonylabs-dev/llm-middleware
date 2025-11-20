@@ -212,7 +212,12 @@ export abstract class BaseAIUseCase<
       UseCaseMetricsLoggerService.logCompletion(this.constructor.name, metrics);
 
       // Create and return the result
-      return this.createResult(processedContent, formattedUserMessage, extractedThinking);
+      return this.createResult(
+        processedContent,
+        formattedUserMessage,
+        extractedThinking,
+        result.usage
+      );
     } catch (error) {
       errorMessage = error instanceof Error ? error.message : 'Unknown error';
 
@@ -287,5 +292,10 @@ export abstract class BaseAIUseCase<
    * @param usedPrompt The formatted prompt that was used
    * @param thinking Optional thinking content from the model
    */
-  protected abstract createResult(content: string, usedPrompt: string, thinking?: string): TResult;
+  protected abstract createResult(
+    content: string,
+    usedPrompt: string,
+    thinking?: string,
+    usage?: { inputTokens?: number; outputTokens?: number; totalTokens?: number; estimatedCostUsd?: number; }
+  ): TResult;
 }
