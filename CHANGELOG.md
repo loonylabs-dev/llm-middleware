@@ -1,3 +1,39 @@
+## [2.11.0] - 2025-12-04
+
+### Feature: Dynamic System Messages via `getSystemMessage(request)`
+
+This release adds the ability to customize system messages per-request, enabling dynamic system message generation based on request data.
+
+#### Added
+
+- **`getSystemMessage(request?)` method in `BaseAIUseCase`**: Override this method in child classes to customize the system message for each request. Default implementation returns the static `systemMessage` property for backward compatibility.
+- **`_currentRequest` internal property**: Stores the current request during execution for access in `getSystemMessage()`.
+
+#### Benefits
+
+- Dynamic system messages based on request context (e.g., book type, user preferences)
+- Backward compatible - existing use cases work without changes
+- Full access to request data when generating system messages
+
+### Usage Example
+
+```typescript
+class MyDynamicUseCase extends BaseAIUseCase<MyPrompt, MyRequest, MyResult> {
+  protected readonly systemMessage = "Default system message";
+
+  // Override to customize system message per-request
+  protected getSystemMessage(request?: MyRequest): string {
+    const bookType = request?.data?.bookType;
+    if (bookType === 'technical') {
+      return generateTechnicalSystemMessage(bookType);
+    }
+    return this.systemMessage;
+  }
+}
+```
+
+---
+
 ## [2.10.0] - 2025-11-20
 
 ### ✨ Feature: Pass LLM Usage Data to AI Results

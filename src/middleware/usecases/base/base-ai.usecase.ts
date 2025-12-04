@@ -16,7 +16,7 @@ import { UseCaseMetricsLoggerService } from '../../services/use-case-metrics-log
  */
 export abstract class BaseAIUseCase<
   TPrompt = string,
-  TRequest extends BaseAIRequest<TPrompt> = BaseAIRequest<TPrompt>, 
+  TRequest extends BaseAIRequest<TPrompt> = BaseAIRequest<TPrompt>,
   TResult extends BaseAIResult = BaseAIResult
 > {
   /**
@@ -24,6 +24,38 @@ export abstract class BaseAIUseCase<
    * Must be defined by each specific use case
    */
   protected abstract readonly systemMessage: string;
+
+  /**
+   * Stores the current request during execution for access in getSystemMessage()
+   * @internal
+   */
+  private _currentRequest?: TRequest;
+
+  /**
+   * Get the system message for a specific request.
+   * Override this method in child classes to customize the system message per-request.
+   * Default implementation returns the static systemMessage property.
+   *
+   * @param request - The current request (optional for backward compatibility)
+   * @returns The system message to use for this request
+   *
+   * @example
+   * ```typescript
+   * // Dynamic system message based on request data
+   * protected getSystemMessage(request?: MyRequest): string {
+   *   const bookType = request?.data?.bookType;
+   *   if (bookType) {
+   *     return generateSystemMessageForBookType(bookType);
+   *   }
+   *   return this.systemMessage;
+   * }
+   * ```
+   *
+   * @since 2.11.0
+   */
+  protected getSystemMessage(request?: TRequest): string {
+    return this.systemMessage;
+  }
 
   /**
    * Default model configuration key to use across all use cases
@@ -114,6 +146,12 @@ export abstract class BaseAIUseCase<
       throw new Error('Valid prompt must be provided');
     }
 
+    // Store current request for getSystemMessage() access
+    this._currentRequest = request;
+
+    // Get effective system message (may be dynamic based on request)
+    const effectiveSystemMessage = this.getSystemMessage(request);
+
     // Format the raw prompt using formatUserMessage
     const formattedPrompt = this.formatUserMessage(request.prompt);
     
@@ -156,7 +194,7 @@ export abstract class BaseAIUseCase<
       // Call the LLM service with the configured provider
       const result = await llmService.callWithSystemMessage(
         formattedUserMessage,
-        this.systemMessage,
+        effectiveSystemMessage,
         {
           model: this.modelConfig.name,
           temperature: validatedParams.temperature,
@@ -197,7 +235,7 @@ export abstract class BaseAIUseCase<
       // Calculate and log metrics
       const metrics = UseCaseMetricsLoggerService.calculateMetrics(
         startTime,
-        this.systemMessage,
+        effectiveSystemMessage,
         formattedUserMessage,
         result.message.content,
         thinking,
@@ -224,7 +262,7 @@ export abstract class BaseAIUseCase<
       // Calculate metrics for failed execution
       const metrics = UseCaseMetricsLoggerService.calculateMetrics(
         startTime,
-        this.systemMessage,
+        effectiveSystemMessage,
         formattedUserMessage,
         '',
         thinking,

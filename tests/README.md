@@ -6,7 +6,7 @@ Complete testing documentation for all test categories, from unit tests to end-t
 
 | Test Command | Category | Provider Required | Description |
 |-------------|----------|-------------------|-------------|
-| `npm run test:unit` | Unit | ❌ No | Jest unit tests (186 tests) |
+| `npm run test:unit` | Unit | ❌ No | Jest unit tests (193+ tests) |
 | `npm run test:unit:watch` | Unit | ❌ No | Jest watch mode for development |
 | `npm run test:unit:coverage` | Unit | ❌ No | Jest with coverage report |
 | `npm run test:basic` | Component | ❌ No | Basic middleware services validation |
@@ -125,11 +125,16 @@ npm run test:all && npm run test:e2e
   - Custom provider override tests
   - Backward compatibility tests
   - Edge cases (validation, error handling)
+- BaseAIUseCase Dynamic System Message (7 tests) - **New in v2.11.0**
+  - `getSystemMessage()` default behavior (returns static systemMessage)
+  - Dynamic override per request
+  - Backward compatibility (existing use cases work unchanged)
+  - Request data access for customization
 
 **Expected Results**:
 ```
 Test Suites: 14 passed, 14 total
-Tests:       124 passed, 124 total
+Tests:       131+ passed, 131+ total
 Coverage:    70%+ (lines, functions, branches, statements)
 ```
 

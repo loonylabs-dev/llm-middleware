@@ -85,6 +85,112 @@ class OpenAIProviderUseCase extends BaseAIUseCase<string, TestRequest, TestResul
   }
 }
 
+/**
+ * Test use case with dynamic system message based on request
+ */
+interface DynamicTestRequest extends BaseAIRequest<string> {
+  message: string;
+  context?: string;
+}
+
+class DynamicSystemMessageUseCase extends BaseAIUseCase<string, DynamicTestRequest, TestResult> {
+  protected readonly systemMessage = "Default system message";
+
+  protected getSystemMessage(request?: DynamicTestRequest): string {
+    if (request?.context === 'technical') {
+      return "You are a technical expert.";
+    }
+    if (request?.context === 'creative') {
+      return "You are a creative writer.";
+    }
+    return this.systemMessage;
+  }
+
+  protected getUserTemplate(): (formattedPrompt: string) => string {
+    return (prompt) => prompt;
+  }
+
+  protected createResult(content: string, usedPrompt: string, thinking?: string): TestResult {
+    return {
+      generatedContent: content,
+      model: this.modelConfig.name,
+      usedPrompt,
+      thinking,
+      response: content
+    };
+  }
+}
+
+describe('BaseAIUseCase - Dynamic System Message (v2.11.0)', () => {
+  describe('getSystemMessage() method', () => {
+    it('should return static systemMessage by default', () => {
+      const useCase = new DefaultProviderUseCase();
+      const systemMessage = (useCase as any).getSystemMessage();
+
+      expect(systemMessage).toBe("Test system message");
+    });
+
+    it('should return static systemMessage when called with undefined request', () => {
+      const useCase = new DefaultProviderUseCase();
+      const systemMessage = (useCase as any).getSystemMessage(undefined);
+
+      expect(systemMessage).toBe("Test system message");
+    });
+
+    it('should return static systemMessage when called with request (default implementation)', () => {
+      const useCase = new DefaultProviderUseCase();
+      const request: TestRequest = { prompt: 'test', message: 'hello' };
+      const systemMessage = (useCase as any).getSystemMessage(request);
+
+      expect(systemMessage).toBe("Test system message");
+    });
+
+    it('should allow override for dynamic system messages', () => {
+      const useCase = new DynamicSystemMessageUseCase();
+
+      // No context - should return default
+      const defaultMessage = (useCase as any).getSystemMessage({ prompt: 'test', message: 'hello' });
+      expect(defaultMessage).toBe("Default system message");
+
+      // Technical context
+      const technicalMessage = (useCase as any).getSystemMessage({ prompt: 'test', message: 'hello', context: 'technical' });
+      expect(technicalMessage).toBe("You are a technical expert.");
+
+      // Creative context
+      const creativeMessage = (useCase as any).getSystemMessage({ prompt: 'test', message: 'hello', context: 'creative' });
+      expect(creativeMessage).toBe("You are a creative writer.");
+    });
+
+    it('should return default when override receives undefined', () => {
+      const useCase = new DynamicSystemMessageUseCase();
+      const systemMessage = (useCase as any).getSystemMessage(undefined);
+
+      expect(systemMessage).toBe("Default system message");
+    });
+  });
+
+  describe('Backward Compatibility', () => {
+    it('should maintain backward compatibility - existing use cases work without changes', () => {
+      // Use cases that don't override getSystemMessage should work exactly as before
+      const useCase = new DefaultProviderUseCase();
+      const systemMessage = (useCase as any).getSystemMessage();
+
+      expect(systemMessage).toBe("Test system message");
+    });
+
+    it('should allow both static systemMessage property and dynamic override', () => {
+      const useCase = new DynamicSystemMessageUseCase();
+
+      // Static property should still exist
+      expect((useCase as any).systemMessage).toBe("Default system message");
+
+      // But getSystemMessage can return different values
+      const dynamicMessage = (useCase as any).getSystemMessage({ prompt: 'test', message: 'hello', context: 'technical' });
+      expect(dynamicMessage).toBe("You are a technical expert.");
+    });
+  });
+});
+
 describe('BaseAIUseCase - Provider Selection', () => {
   describe('getProvider() method', () => {
     it('should return OLLAMA as default provider', () => {

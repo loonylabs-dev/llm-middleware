@@ -38,6 +38,7 @@
 ## ✨ Features
 
 - 🏗️ **Clean Architecture**: Base classes and interfaces for scalable AI applications
+  - ✨ **v2.11.0**: Dynamic system messages via `getSystemMessage(request)` override
 - 🤖 **Multi-Provider Architecture**: Extensible provider system with strategy pattern
   - ✅ **Ollama**: Fully supported with comprehensive parameter control
   - ✅ **Anthropic Claude**: Complete support for Claude models (Opus, Sonnet, Haiku)
@@ -119,6 +120,21 @@ class MyAnthropicChatUseCase extends MyChatUseCase {
   protected getProvider(): LLMProvider {
     return LLMProvider.ANTHROPIC;  // Use Claude instead of Ollama
   }
+}
+
+// Dynamic system message based on request data (v2.11.0+)
+class DynamicSystemMessageUseCase extends BaseAIUseCase<MyPrompt, MyRequest, MyResult> {
+  protected readonly systemMessage = "Default system message";
+
+  // Override to customize system message per-request
+  protected getSystemMessage(request?: MyRequest): string {
+    const context = request?.prompt?.context;
+    if (context === 'technical') {
+      return "You are a technical expert. Be precise and detailed.";
+    }
+    return this.systemMessage;
+  }
+  // ... other methods
 }
 ```
 
