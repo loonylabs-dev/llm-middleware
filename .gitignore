@@ -137,5 +137,5 @@ test-results/
 
 # Claude Code specific files
 CLAUDE.md
-.claude/
+.claude/settings.local.json
 package-lock.json

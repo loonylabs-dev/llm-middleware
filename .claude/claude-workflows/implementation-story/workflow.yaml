@@ -1,0 +1,31 @@
+# Implementation Story Workflow
+name: implementation-story
+description: "Create a complete, implementation-ready story from a user request. One workflow, one document, ready for fresh-context implementation."
+author: "Claude Workflows"
+
+# Project variables (will be resolved from project context)
+project_name: runtime-captured
+output_folder: "{project-root}/docs"
+dev_story_location: "{project-root}/docs/stories"
+user_name: runtime-captured
+communication_language: English
+document_output_language: English
+user_skill_level: intermediate
+date: system-generated
+
+# Runtime variables (captured during workflow execution)
+story_slug: runtime-captured
+branch_name: runtime-captured
+feature_description: runtime-captured
+
+# Workflow components (local paths relative to workflow location)
+installed_path: "{workflow-dir}"
+instructions: "{installed_path}/instructions.md"
+template: "{installed_path}/story-template.md"
+checklist: "{installed_path}/checklist.md"
+
+# Output configuration
+default_output_file: "{dev_story_location}/{{story_slug}}.md"
+
+# Standalone mode (no dependency on previous workflows)
+standalone: true
