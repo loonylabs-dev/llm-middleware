@@ -21,11 +21,14 @@ src/middleware/services/llm/
 │   ├── base-llm-provider.ts       # Abstract base class
 │   ├── ollama-provider.ts         # Ollama implementation (v2.0+)
 │   ├── anthropic-provider.ts      # Anthropic implementation (v2.1+)
-│   └── openai-provider.ts         # Coming soon
+│   ├── gemini-provider.ts         # Google Gemini implementation (v2.9+)
+│   └── requesty-provider.ts       # Requesty.AI implementation (v2.12+)
 ├── types/
 │   ├── common.types.ts            # Provider-agnostic types
 │   ├── ollama.types.ts            # Ollama-specific types
-│   └── anthropic.types.ts         # Anthropic-specific types (v2.1+)
+│   ├── anthropic.types.ts         # Anthropic-specific types (v2.1+)
+│   ├── gemini.types.ts            # Gemini-specific types (v2.9+)
+│   └── requesty.types.ts          # Requesty-specific types (v2.12+)
 └── llm.service.ts                 # Main orchestrator
 ```
 
@@ -169,6 +172,104 @@ ANTHROPIC_API_KEY=sk-ant-api03-...your-key...
 ANTHROPIC_MODEL=claude-3-5-sonnet-20241022
 ```
 
+### Requesty.AI Provider (v2.12+)
+
+Full support for Requesty.AI gateway providing access to 300+ models from multiple providers including EU-hosted OpenAI models:
+
+- **EU-Hosted OpenAI**: DSGVO-compliant ChatGPT and GPT-4 models
+- **Multi-Provider Access**: One API key for OpenAI, Anthropic, Google, and more
+- **Cost Tracking**: Built-in cost reporting in EUR
+- **Model Agnostic**: No model validation - use any available model
+- **Enterprise Ready**: 180s timeout for stable gateway routing
+
+**Usage:**
+
+```typescript
+import { requestyProvider, llmService, LLMProvider } from '@loonylabs/llm-middleware';
+
+// Option 1: Use via LLM Service
+const response1 = await llmService.call(
+  "Explain quantum computing",
+  {
+    provider: LLMProvider.REQUESTY,
+    model: "openai/gpt-4o",
+    authToken: process.env.REQUESTY_API_KEY,
+    maxTokens: 1024,
+    temperature: 0.7
+  }
+);
+
+// Option 2: Use provider directly
+const response2 = await requestyProvider.callWithSystemMessage(
+  "Write a haiku about coding",
+  "You are a creative poet",
+  {
+    model: "anthropic/claude-3-5-sonnet",
+    authToken: process.env.REQUESTY_API_KEY,
+    maxTokens: 1024,
+    temperature: 0.7
+  }
+);
+
+// Access cost information
+console.log(`Cost: ${response2.usage.cost} EUR`);
+```
+
+**Supported Models** (Examples):
+
+| Provider | Model Name Format | Example |
+|----------|------------------|---------|
+| OpenAI | `openai/model-name` | `openai/gpt-4o`, `openai/gpt-4-turbo` |
+| Anthropic | `anthropic/model-name` | `anthropic/claude-3-5-sonnet` |
+| Google | `google/model-name` | `google/gemini-pro` |
+| Vertex AI | `vertex/model-name@region` | `vertex/gemini-2.5-flash-lite@europe-central2` |
+
+*See [Requesty.AI documentation](https://docs.requesty.ai/) for full model list.*
+
+**Supported Parameters:**
+
+- `model` - Model identifier in format `provider/model-name` (required)
+- `temperature` - Randomness control (0-1, default: 0.7)
+- `maxTokens` - Maximum tokens to generate (default: 4096)
+- `httpReferer` - Optional analytics header (your site URL)
+- `xTitle` - Optional analytics header (your app name)
+
+**Features:**
+
+- ✅ **Cost Transparency**: Automatic cost tracking in `response.usage.cost` (EUR)
+- ✅ **EU Data Residency**: Router endpoint `https://router.eu.requesty.ai/v1`
+- ✅ **OpenAI-Compatible**: Standard `/v1/chat/completions` endpoint
+- ✅ **Error Handling**: Comprehensive handling for 401, 429, 400 errors
+- ✅ **Three-Level Logging**: Console, DataFlow, and file-based debug logs
+
+**Configuration:**
+
+```env
+REQUESTY_API_KEY=your_requesty_api_key_here
+REQUESTY_MODEL=openai/gpt-4o  # Default model (optional)
+```
+
+**Cost Tracking Example:**
+
+```typescript
+const response = await llmService.call(
+  "Say hello in 3 words",
+  {
+    provider: LLMProvider.REQUESTY,
+    model: "vertex/gemini-2.5-flash-lite@europe-central2"
+  }
+);
+
+console.log(`Tokens: ${response.usage.totalTokens}`);
+console.log(`Cost: ${response.usage.cost} EUR`);
+console.log(`Cost per 1000 calls: ${(response.usage.cost * 1000).toFixed(6)} EUR`);
+
+// Example output:
+// Tokens: 12
+// Cost: 0.0000024 EUR
+// Cost per 1000 calls: 0.002400 EUR
+```
+
 ### OpenAI (Coming in v2.2)
 
 Planned support for:
@@ -279,8 +380,9 @@ import { LLMDebugger, LLMDebugInfo } from '@loonylabs/llm-middleware';
 
 // Logs are organized by provider
 // logs/llm/ollama/requests/
-// logs/llm/openai/requests/
 // logs/llm/anthropic/requests/
+// logs/llm/gemini/requests/
+// logs/llm/requesty/requests/
 ```
 
 ### Environment Variables
@@ -324,6 +426,12 @@ interface CommonLLMResponse {
     model: string;
     tokensUsed?: number;
     processingTime?: number;
+  };
+  usage?: {
+    inputTokens: number;
+    outputTokens: number;
+    totalTokens: number;
+    cost?: number;  // EUR (provider-specific, e.g., Requesty)
   };
 }
 ```
@@ -400,16 +508,23 @@ If you're migrating from v1.x (ollama-middleware), see [CHANGELOG.md](../CHANGEL
 
 ## Roadmap
 
-### v2.1 (Released)
+### v2.12 (Released - 2025-12-08)
+- ✅ Requesty.AI Provider (300+ models, EU-hosted OpenAI)
+- ✅ Cost tracking in TokenUsage interface
+- ✅ Global timeout increase (180s)
+- ✅ Model agnostic gateway access
+
+### v2.1-2.11 (Released)
 - ✅ Anthropic Provider (Claude models)
+- ✅ Google Gemini Provider
 - ✅ Parametrized provider testing
 - ✅ Provider-specific logging
+- ✅ Dynamic system messages
 
-### v2.2 (Planned)
-- OpenAI Provider (GPT models)
-- Google Provider (Gemini models)
-- Unified parameter mapping
+### v2.13 (Planned)
 - Streaming support across providers
+- Enhanced cost analytics
+- Provider health monitoring
 
 ### v2.3 (Planned)
 - Provider health checking

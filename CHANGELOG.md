@@ -1,3 +1,101 @@
+## [2.12.0] - 2025-12-08
+
+### 🚀 Feature: Requesty.AI Provider Integration
+
+This release adds comprehensive support for Requesty.AI, enabling DSGVO-compliant access to 300+ AI models including EU-hosted OpenAI models through a single unified API.
+
+#### Added
+
+- **Requesty.AI Provider (`RequestyProvider`)**: Complete implementation following the established provider pattern
+  - OpenAI-compatible API integration (`/v1/chat/completions`)
+  - EU-specific router: `https://router.eu.requesty.ai/v1` for DSGVO compliance
+  - Comprehensive error handling (401, 429, 400) with three-level logging
+  - Token usage normalization (OpenAI format → `TokenUsage` interface)
+  - Singleton export pattern with backward-compatible aliases
+
+- **Cost Tracking**: New optional `cost` field in `TokenUsage` interface
+  - Transparent cost tracking for providers that support it
+  - Currently supported by Requesty.AI provider
+  - Backward compatible (optional field, undefined for other providers)
+  - Cost reported in EUR as provided by the API
+
+- **Model Agnosticity**: Access any model available through Requesty.AI
+  - Format: `provider/model-name` (e.g., `openai/gpt-4o`, `anthropic/claude-3-5-sonnet`, `vertex/gemini-2.5-flash-lite@europe-central2`)
+  - No provider-specific model validation
+  - Automatic routing through Requesty.AI gateway
+
+- **Global Timeout Increase**: All providers now use 180s timeout (previously 90s)
+  - Provides buffer for multi-hop gateway latency
+  - Applies to: Anthropic, Gemini, Ollama, and Requesty providers
+
+- **Test Infrastructure**: Added Requesty provider smoke test
+  - New npm script: `test:provider:requesty`
+  - Integrated into existing `provider-smoke-test.ts`
+  - Comprehensive validation of API calls, logging, and token usage
+
+#### Configuration
+
+New environment variables:
+```bash
+REQUESTY_API_KEY=your_requesty_api_key_here
+REQUESTY_MODEL=openai/gpt-4o  # Default model (format: provider/model-name)
+```
+
+#### Benefits
+
+- **DSGVO Compliance**: EU-hosted OpenAI models for data privacy requirements
+- **Unified Access**: One API key for 300+ models across multiple providers
+- **Cost Transparency**: Built-in cost tracking in EUR
+- **Provider Flexibility**: Easy switching between local (Ollama) and cloud providers (Requesty, Anthropic, Gemini)
+- **Model Agnostic**: Use any model without code changes
+
+#### Usage Example
+
+```typescript
+import { LLMService, LLMProvider } from '@loonylabs/llm-middleware';
+
+const llmService = new LLMService();
+
+const response = await llmService.callWithSystemMessage(
+  'Hello, who are you?',
+  'You are a helpful assistant',
+  {
+    provider: LLMProvider.REQUESTY,
+    model: 'openai/gpt-4o',  // or 'anthropic/claude-3-5-sonnet', 'vertex/gemini-2.5-flash-lite@europe-central2', etc.
+    authToken: process.env.REQUESTY_API_KEY
+  }
+);
+
+// Response includes cost information
+console.log(response.usage.cost); // e.g., 0.0000024 EUR
+```
+
+#### Technical Details
+
+**Files Added:**
+- `src/middleware/services/llm/providers/requesty-provider.ts` (320 lines)
+- `src/middleware/services/llm/types/requesty.types.ts` (59 lines)
+
+**Files Modified:**
+- `src/middleware/services/llm/types/common.types.ts` - Added `REQUESTY` enum value and `cost` field to `TokenUsage`
+- `src/middleware/services/llm/llm.service.ts` - Registered RequestyProvider
+- `src/middleware/services/llm/providers/index.ts` - Exported RequestyProvider
+- `src/middleware/services/llm/types/index.ts` - Exported Requesty types
+- `src/middleware/services/llm/providers/anthropic-provider.ts` - Timeout increase
+- `src/middleware/services/llm/providers/ollama-provider.ts` - Timeout increase (4 locations)
+- `src/middleware/services/llm/providers/gemini-provider.ts` - Timeout increase
+- `.env.example` - Added Requesty configuration section
+- `tests/manual/provider-smoke-test.ts` - Added Requesty test case
+- `package.json` - Added `test:provider:requesty` script
+
+**Pattern Conformity:**
+- Follows existing provider architecture (BaseLLMProvider)
+- Three-level logging (console logger, DataFlowLogger, LLMDebugger)
+- Standard error handling pattern (return `null` on errors)
+- Normalized response format (CommonLLMResponse)
+
+---
+
 ## [2.11.0] - 2025-12-04
 
 ### Feature: Dynamic System Messages via `getSystemMessage(request)`

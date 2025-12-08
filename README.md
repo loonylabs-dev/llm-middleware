@@ -2,7 +2,7 @@
 
 # 🚀 LLM Middleware
 
-*A comprehensive TypeScript middleware library for building robust multi-provider LLM backends. Currently supports Ollama, Anthropic Claude, and Google Gemini, with OpenAI planned. Features advanced JSON cleaning, logging, error handling, and more.*
+*A comprehensive TypeScript middleware library for building robust multi-provider LLM backends. Currently supports Ollama, Anthropic Claude, Google Gemini, and Requesty.AI (300+ models, EU-hosted OpenAI). Features advanced JSON cleaning, logging, error handling, cost tracking, and more.*
 
 <!-- Horizontal Badge Navigation Bar -->
 [![npm version](https://img.shields.io/npm/v/@loonylabs/llm-middleware.svg?style=for-the-badge&logo=npm&logoColor=white)](https://www.npmjs.com/package/@loonylabs/llm-middleware)
@@ -43,7 +43,7 @@
   - ✅ **Ollama**: Fully supported with comprehensive parameter control
   - ✅ **Anthropic Claude**: Complete support for Claude models (Opus, Sonnet, Haiku)
   - ✅ **Google Gemini**: Complete support for Gemini models (Pro, Flash)
-  - 🔜 **OpenAI**: Planned for future releases
+  - ✅ **Requesty.AI**: 300+ models via unified API, EU-hosted OpenAI (DSGVO-compliant), built-in cost tracking
   - 🔌 **Pluggable**: Easy to add custom providers - see [LLM Providers Guide](docs/LLM_PROVIDERS.md)
 - 🧹 **JSON Cleaning**: Recipe-based JSON repair system with automatic strategy selection
   - ✨ **v2.4.0**: Enhanced array extraction support - properly handles JSON arrays `[...]` in addition to objects `{...}`
