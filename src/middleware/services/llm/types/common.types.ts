@@ -89,7 +89,8 @@ export enum LLMProvider {
   OLLAMA = 'ollama',
   OPENAI = 'openai',
   ANTHROPIC = 'anthropic',
-  GOOGLE = 'google'
+  GOOGLE = 'google',
+  REQUESTY = 'requesty'
 }
 
 /**

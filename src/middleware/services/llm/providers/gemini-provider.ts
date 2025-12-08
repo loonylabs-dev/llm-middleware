@@ -186,7 +186,7 @@ export class GeminiProvider extends BaseLLMProvider {
           headers: {
             'Content-Type': 'application/json'
           },
-          timeout: 90000 // 90 second timeout
+          timeout: 180000 // 180 second timeout
         }
       );
 

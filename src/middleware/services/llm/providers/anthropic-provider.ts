@@ -171,7 +171,7 @@ export class AnthropicProvider extends BaseLLMProvider {
         requestPayload,
         {
           headers,
-          timeout: 90000 // 90 second timeout
+          timeout: 180000 // 180 second timeout
         }
       );
 

@@ -175,7 +175,7 @@ export class OllamaProvider extends BaseLLMProvider {
 
       const response = await axios.post(`${baseUrl}/api/chat`, data, {
         headers,
-        timeout: 90000 // 90 second timeout
+        timeout: 180000 // 180 second timeout
       });
       const requestDuration = Date.now() - requestStartTime;
 
@@ -353,7 +353,7 @@ export class OllamaProvider extends BaseLLMProvider {
                 };
                 const retryRaw = await axios.post(`${baseUrl}/api/chat`, baseData, {
                   headers: headersRawAuth,
-                  timeout: 90000
+                  timeout: 180000
                 });
                 if (retryRaw && retryRaw.status === 200) {
                   return this.handleSuccessfulResponse(retryRaw.data, debugInfo, sessionId, requestStartTime, debugContext, contextForLogger, requestId);
@@ -375,7 +375,7 @@ export class OllamaProvider extends BaseLLMProvider {
                 };
                 const retryApiKey = await axios.post(`${baseUrl}/api/chat`, baseData, {
                   headers: headersApiKey,
-                  timeout: 90000
+                  timeout: 180000
                 });
                 if (retryApiKey && retryApiKey.status === 200) {
                   return this.handleSuccessfulResponse(retryApiKey.data, debugInfo, sessionId, requestStartTime, debugContext, contextForLogger, requestId);
@@ -393,7 +393,7 @@ export class OllamaProvider extends BaseLLMProvider {
               const headersNoAuth: Record<string, string> = { 'Content-Type': 'application/json' };
               const retryAuthless = await axios.post(`${baseUrl}/api/chat`, baseData, {
                 headers: headersNoAuth,
-                timeout: 90000
+                timeout: 180000
               });
               if (retryAuthless && retryAuthless.status === 200) {
                 return this.handleSuccessfulResponse(retryAuthless.data, debugInfo, sessionId, requestStartTime, debugContext, contextForLogger, requestId);
