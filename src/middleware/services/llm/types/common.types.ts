@@ -51,6 +51,8 @@ export interface TokenUsage {
   outputTokens: number;
   /** Total tokens (inputTokens + outputTokens) */
   totalTokens: number;
+  /** Cost of the request in EUR (optional, provider-specific) */
+  cost?: number;
   /** Cache-related token counts (optional, provider-specific) */
   cacheMetadata?: {
     /** Tokens used to create cache */
