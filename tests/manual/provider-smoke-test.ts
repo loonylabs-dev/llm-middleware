@@ -38,9 +38,15 @@ switch (providerName) {
     apiKey = process.env.ANTHROPIC_API_KEY;
     break;
 
+  case 'requesty':
+    provider = LLMProvider.REQUESTY;
+    modelName = process.env.REQUESTY_MODEL || 'openai/gpt-4o';
+    apiKey = process.env.REQUESTY_API_KEY;
+    break;
+
   default:
     console.error(`❌ Unknown provider: ${providerName}`);
-    console.log('Available providers: ollama, anthropic');
+    console.log('Available providers: ollama, anthropic, requesty');
     process.exit(1);
 }
 
@@ -78,6 +84,8 @@ async function runProviderSmokeTest() {
       console.log('Please set MODEL1_NAME in your .env file');
     } else if (provider === LLMProvider.ANTHROPIC) {
       console.log('Please set ANTHROPIC_MODEL in your .env file');
+    } else if (provider === LLMProvider.REQUESTY) {
+      console.log('Please set REQUESTY_MODEL in your .env file');
     }
     process.exit(1);
   }
@@ -86,6 +94,8 @@ async function runProviderSmokeTest() {
     console.error(`❌ API key not configured for ${provider}`);
     if (provider === LLMProvider.ANTHROPIC) {
       console.log('Please set ANTHROPIC_API_KEY in your .env file');
+    } else if (provider === LLMProvider.REQUESTY) {
+      console.log('Please set REQUESTY_API_KEY in your .env file');
     }
     process.exit(1);
   }
@@ -170,6 +180,10 @@ async function runProviderSmokeTest() {
       } else if (provider === LLMProvider.ANTHROPIC) {
         console.log('⚠️  Check if your ANTHROPIC_API_KEY is valid');
         console.log('⚠️  Check if you have sufficient credits');
+      } else if (provider === LLMProvider.REQUESTY) {
+        console.log('⚠️  Check if your REQUESTY_API_KEY is valid');
+        console.log('⚠️  Check if you have sufficient credits');
+        console.log('⚠️  Check if the model is available on Requesty.ai');
       }
     }
   } catch (error) {
@@ -186,6 +200,12 @@ async function runProviderSmokeTest() {
       console.log('   - Verify your API key is correct');
       console.log('   - Check your account has sufficient credits');
       console.log('   - Ensure the model name is valid');
+    } else if (provider === LLMProvider.REQUESTY) {
+      console.log('\n⚠️  Troubleshooting for Requesty:');
+      console.log('   - Verify your API key is correct');
+      console.log('   - Check your account has sufficient credits');
+      console.log('   - Ensure the model name is valid (format: provider/model-name)');
+      console.log('   - Example models: openai/gpt-4o, anthropic/claude-3-5-sonnet');
     }
 
     process.exit(1);

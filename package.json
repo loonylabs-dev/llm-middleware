@@ -24,6 +24,7 @@
     "test:manual:story-test": "ts-node tests/manual/story-generator-test.ts",
     "test:provider:ollama": "TEST_PROVIDER=ollama ts-node tests/manual/provider-smoke-test.ts",
     "test:provider:anthropic": "TEST_PROVIDER=anthropic ts-node tests/manual/provider-smoke-test.ts",
+    "test:provider:requesty": "TEST_PROVIDER=requesty ts-node tests/manual/provider-smoke-test.ts",
     "test:ci": "jest --runInBand --ci --coverage",
     "lint": "eslint src/**/*.ts",
     "clean": "rm -rf dist",
