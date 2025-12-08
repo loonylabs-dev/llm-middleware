@@ -20,7 +20,7 @@ import { DataFlowLoggerService } from '../../data-flow-logger';
  */
 export class RequestyProvider extends BaseLLMProvider {
   private dataFlowLogger: DataFlowLoggerService;
-  private readonly BASE_URL = 'https://router.requesty.ai/v1';
+  private readonly BASE_URL = 'https://router.eu.requesty.ai/v1';
 
   constructor() {
     super(LLMProvider.REQUESTY);
