@@ -1,3 +1,26 @@
+## [2.12.2] - 2025-12-09
+
+### 🐛 Bug Fix: Pass Provider Cost to createResult()
+
+**Fixed:**
+- The `costUsd` field from provider responses was not being passed through to `createResult()` method
+- Updated `BaseAIResult.usage` type to include both `costUsd` (provider-reported) and `estimatedCostUsd` (consumer-calculated, legacy)
+- Updated `createResult()` signature in `BaseAIUseCase` to accept the `costUsd` field
+- Renamed `TokenUsage.cost` to `TokenUsage.costUsd` for consistency with `estimatedCostUsd`
+
+**Why this matters:**
+- Consumers can now access the provider-reported cost (e.g., from Requesty.AI) in the result's `usage.costUsd` field
+- The legacy `estimatedCostUsd` field is preserved for backward compatibility with consumers who calculate costs themselves
+- No breaking changes - both fields are optional
+
+**Files Updated:**
+- `src/middleware/services/llm/types/common.types.ts` - Renamed `cost` to `costUsd` in `TokenUsage`
+- `src/middleware/shared/types/base-request.types.ts` - Added `costUsd` to `BaseAIResult.usage`
+- `src/middleware/usecases/base/base-ai.usecase.ts` - Added `costUsd` to `createResult()` usage parameter
+- `src/middleware/services/llm/providers/requesty-provider.ts` - Updated to use `costUsd`
+
+---
+
 ## [2.12.1] - 2025-12-08
 
 ### 🐛 Bug Fix: Currency Correction in Cost Tracking

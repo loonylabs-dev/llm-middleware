@@ -51,8 +51,8 @@ export interface TokenUsage {
   outputTokens: number;
   /** Total tokens (inputTokens + outputTokens) */
   totalTokens: number;
-  /** Cost of the request in USD (optional, provider-specific) */
-  cost?: number;
+  /** Cost of the request in USD (optional, provider-specific, from Requesty.AI) */
+  costUsd?: number;
   /** Cache-related token counts (optional, provider-specific) */
   cacheMetadata?: {
     /** Tokens used to create cache */

@@ -30,6 +30,9 @@ export interface BaseAIResult {
     inputTokens?: number;
     outputTokens?: number;
     totalTokens?: number;
+    /** Estimated cost in USD (calculated by consumer, legacy) */
     estimatedCostUsd?: number;
+    /** Provider-reported cost in USD (from Requesty.AI) */
+    costUsd?: number;
   };
 }

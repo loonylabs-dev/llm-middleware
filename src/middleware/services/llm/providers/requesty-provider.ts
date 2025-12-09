@@ -163,7 +163,7 @@ export class RequestyProvider extends BaseLLMProvider {
           inputTokens: apiResponse.usage.prompt_tokens,
           outputTokens: apiResponse.usage.completion_tokens,
           totalTokens: apiResponse.usage.total_tokens,
-          ...(apiResponse.usage.cost !== undefined && { cost: apiResponse.usage.cost })
+          ...(apiResponse.usage.cost !== undefined && { costUsd: apiResponse.usage.cost })
         };
 
         // Normalize response

@@ -329,11 +329,12 @@ export abstract class BaseAIUseCase<
    * @param content The processed content to use for the result
    * @param usedPrompt The formatted prompt that was used
    * @param thinking Optional thinking content from the model
+   * @param usage Token usage and cost information from provider
    */
   protected abstract createResult(
     content: string,
     usedPrompt: string,
     thinking?: string,
-    usage?: { inputTokens?: number; outputTokens?: number; totalTokens?: number; estimatedCostUsd?: number; }
+    usage?: { inputTokens?: number; outputTokens?: number; totalTokens?: number; estimatedCostUsd?: number; costUsd?: number; }
   ): TResult;
 }
