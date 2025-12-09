@@ -249,18 +249,19 @@ export abstract class BaseAIUseCase<
       // Log completion with metrics
       UseCaseMetricsLoggerService.logCompletion(this.constructor.name, metrics);
 
-      // Create and return the result
-      const finalResult = this.createResult(
+      // Create the business result from concrete implementation
+      const businessResult = this.createResult(
         processedContent,
         formattedUserMessage,
-        extractedThinking,
-        result.usage
+        extractedThinking
       );
 
-      // Ensure usage is available in result (for consumers like Scribomate)
-      if (result.usage && !(finalResult as any).usage) {
-        (finalResult as any).usage = result.usage;
-      }
+      // Attach usage metadata to result (library responsibility since 2.13.0)
+      // This ensures consistent token/cost data across all use cases
+      const finalResult = {
+        ...businessResult,
+        usage: result.usage
+      } as TResult;
 
       return finalResult;
     } catch (error) {
@@ -332,16 +333,22 @@ export abstract class BaseAIUseCase<
 
   /**
    * Create the result object
-   * This is a template method to be implemented by specific use cases
+   * This is a template method to be implemented by specific use cases.
+   *
+   * NOTE: Token usage and cost information is automatically attached to the result
+   * by the base class execute() method. Concrete implementations should focus on
+   * business logic only.
+   *
    * @param content The processed content to use for the result
    * @param usedPrompt The formatted prompt that was used
    * @param thinking Optional thinking content from the model
-   * @param usage Token usage and cost information from provider
+   *
+   * @since 2.13.0 - BREAKING: Removed usage parameter. Usage is now automatically
+   * attached by execute() method. See CHANGELOG for migration guide.
    */
   protected abstract createResult(
     content: string,
     usedPrompt: string,
-    thinking?: string,
-    usage?: { inputTokens?: number; outputTokens?: number; totalTokens?: number; estimatedCostUsd?: number; costUsd?: number; }
+    thinking?: string
   ): TResult;
 }

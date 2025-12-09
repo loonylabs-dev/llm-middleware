@@ -1,3 +1,72 @@
+## [2.13.0] - 2025-12-09
+
+### ⚠️ BREAKING CHANGE: Library Now Manages Token Usage
+
+This release introduces a cleaner architecture where the library is responsible for attaching token usage metadata to results, not the concrete use cases.
+
+#### Breaking Changes
+
+**`createResult()` signature changed:**
+```typescript
+// BEFORE (2.12.x)
+protected abstract createResult(
+  content: string,
+  usedPrompt: string,
+  thinking?: string,
+  usage?: { inputTokens?: number; outputTokens?: number; ... }
+): TResult;
+
+// AFTER (2.13.0)
+protected abstract createResult(
+  content: string,
+  usedPrompt: string,
+  thinking?: string
+): TResult;
+```
+
+**Migration Guide:**
+1. Remove the `usage` parameter from your `createResult()` implementations
+2. Remove any manual token extraction (e.g., `inputTokens: usage?.inputTokens`)
+3. The `result.usage` object is now automatically attached by the library
+
+**Before (your UseCase):**
+```typescript
+protected createResult(content: string, usedPrompt: string, thinking?: string, usage?: {...}): MyResult {
+  return {
+    generatedContent: content,
+    model: this.modelConfig.name,
+    usedPrompt,
+    thinking,
+    inputTokens: usage?.inputTokens,   // ❌ Remove this
+    outputTokens: usage?.outputTokens,  // ❌ Remove this
+    // ... your business fields
+  };
+}
+```
+
+**After (your UseCase):**
+```typescript
+protected createResult(content: string, usedPrompt: string, thinking?: string): MyResult {
+  return {
+    generatedContent: content,
+    model: this.modelConfig.name,
+    usedPrompt,
+    thinking,
+    // ... your business fields only
+  };
+}
+// result.usage is automatically attached by the library!
+```
+
+#### Why This Change?
+
+- **Clear responsibility**: Library handles infrastructure (tokens, costs), UseCases handle business logic
+- **No more type casting hacks**: Previously used `(result as any).usage = ...`
+- **Consistent across all UseCases**: Every UseCase gets `usage` automatically
+- **Simpler UseCase implementations**: Less boilerplate code
+
+---
+
 ## [2.12.2] - 2025-12-09
 
 ### 🐛 Bug Fix: Pass Provider Cost to createResult()
