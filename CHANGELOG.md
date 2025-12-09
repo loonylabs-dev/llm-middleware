@@ -1,3 +1,22 @@
+## [2.12.1] - 2025-12-08
+
+### 🐛 Bug Fix: Currency Correction in Cost Tracking
+
+**Fixed:**
+- Corrected currency references from EUR to USD in cost tracking documentation and code comments
+- Updated `TokenUsage.cost` field documentation to correctly indicate USD (industry standard for AI API pricing)
+- All cost examples in documentation now show USD instead of EUR
+
+**Why USD?**
+While Requesty.ai is EU-based, the industry standard for AI API pricing is USD (following OpenAI, Anthropic, etc.). The cost field reports values in USD as provided by the Requesty.ai API.
+
+**Files Updated:**
+- `src/middleware/services/llm/types/common.types.ts` - Comment correction
+- `CHANGELOG.md` - Documentation correction
+- `docs/LLM_PROVIDERS.md` - Documentation correction
+
+---
+
 ## [2.12.0] - 2025-12-08
 
 ### 🚀 Feature: Requesty.AI Provider Integration
