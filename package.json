@@ -1,6 +1,6 @@
 {
   "name": "@loonylabs/llm-middleware",
-  "version": "2.13.0",
+  "version": "2.13.1",
   "description": "Complete middleware infrastructure for LLM-based backends with multi-provider support (Ollama, Anthropic, OpenAI, Google)",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

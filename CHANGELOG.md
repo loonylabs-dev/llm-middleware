@@ -1,3 +1,19 @@
+## [2.13.1] - 2025-12-09
+
+### 🐛 Bug Fix: Add Accept Header for Bedrock Models
+
+**Fixed:**
+- Added `Accept: application/json` header to Requesty provider requests
+- Bedrock models (e.g., `bedrock/claude-haiku-4-5@eu-central-1`) require this header
+- Without it, Bedrock returns: "The provided Accept Type is invalid or not supported for this model"
+
+**Why this is safe:**
+- `Accept: application/json` is a standard HTTP header for REST APIs
+- All LLM providers (OpenAI, Anthropic, Google, Azure) accept this header
+- It simply tells the server "I expect JSON response" which is always true for LLM APIs
+
+---
+
 ## [2.13.0] - 2025-12-09
 
 ### ⚠️ BREAKING CHANGE: Library Now Manages Token Usage

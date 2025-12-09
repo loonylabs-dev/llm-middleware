@@ -66,8 +66,10 @@ export class RequestyProvider extends BaseLLMProvider {
     }
 
     // Build headers
+    // Accept header is required for Bedrock models and standard for all JSON APIs
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
+      'Accept': 'application/json',
       'Authorization': `Bearer ${authToken}`
     };
 
