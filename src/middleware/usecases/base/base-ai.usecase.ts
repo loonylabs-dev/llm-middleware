@@ -250,12 +250,19 @@ export abstract class BaseAIUseCase<
       UseCaseMetricsLoggerService.logCompletion(this.constructor.name, metrics);
 
       // Create and return the result
-      return this.createResult(
+      const finalResult = this.createResult(
         processedContent,
         formattedUserMessage,
         extractedThinking,
         result.usage
       );
+
+      // Ensure usage is available in result (for consumers like Scribomate)
+      if (result.usage && !(finalResult as any).usage) {
+        (finalResult as any).usage = result.usage;
+      }
+
+      return finalResult;
     } catch (error) {
       errorMessage = error instanceof Error ? error.message : 'Unknown error';
 
