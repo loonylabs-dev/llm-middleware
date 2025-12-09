@@ -178,7 +178,7 @@ Full support for Requesty.AI gateway providing access to 300+ models from multip
 
 - **EU-Hosted OpenAI**: DSGVO-compliant ChatGPT and GPT-4 models
 - **Multi-Provider Access**: One API key for OpenAI, Anthropic, Google, and more
-- **Cost Tracking**: Built-in cost reporting in EUR
+- **Cost Tracking**: Built-in cost in USD
 - **Model Agnostic**: No model validation - use any available model
 - **Enterprise Ready**: 180s timeout for stable gateway routing
 
@@ -212,7 +212,7 @@ const response2 = await requestyProvider.callWithSystemMessage(
 );
 
 // Access cost information
-console.log(`Cost: ${response2.usage.cost} EUR`);
+console.log(`Cost: ${response2.usage.cost in USD`);
 ```
 
 **Supported Models** (Examples):
@@ -236,7 +236,7 @@ console.log(`Cost: ${response2.usage.cost} EUR`);
 
 **Features:**
 
-- ✅ **Cost Transparency**: Automatic cost tracking in `response.usage.cost` (EUR)
+- ✅ **Cost Transparency**: Automatic cost in USD)
 - ✅ **EU Data Residency**: Router endpoint `https://router.eu.requesty.ai/v1`
 - ✅ **OpenAI-Compatible**: Standard `/v1/chat/completions` endpoint
 - ✅ **Error Handling**: Comprehensive handling for 401, 429, 400 errors
@@ -261,13 +261,13 @@ const response = await llmService.call(
 );
 
 console.log(`Tokens: ${response.usage.totalTokens}`);
-console.log(`Cost: ${response.usage.cost} EUR`);
-console.log(`Cost per 1000 calls: ${(response.usage.cost * 1000).toFixed(6)} EUR`);
+console.log(`Cost: ${response.usage.cost in USD`);
+console.log(`Cost per 1000 calls: ${(response.usage.cost in USD`);
 
 // Example output:
 // Tokens: 12
-// Cost: 0.0000024 EUR
-// Cost per 1000 calls: 0.002400 EUR
+// Cost: USD
+// Cost per 1000 calls: 0.002400 USD
 ```
 
 ### OpenAI (Coming in v2.2)
@@ -431,7 +431,7 @@ interface CommonLLMResponse {
     inputTokens: number;
     outputTokens: number;
     totalTokens: number;
-    cost?: number;  // EUR (provider-specific, e.g., Requesty)
+    cost in USD (provider-specific, e.g., Requesty)
   };
 }
 ```

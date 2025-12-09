@@ -17,7 +17,7 @@ This release adds comprehensive support for Requesty.AI, enabling DSGVO-complian
   - Transparent cost tracking for providers that support it
   - Currently supported by Requesty.AI provider
   - Backward compatible (optional field, undefined for other providers)
-  - Cost reported in EUR as provided by the API
+  - Cost reported in USD as provided by the API
 
 - **Model Agnosticity**: Access any model available through Requesty.AI
   - Format: `provider/model-name` (e.g., `openai/gpt-4o`, `anthropic/claude-3-5-sonnet`, `vertex/gemini-2.5-flash-lite@europe-central2`)
@@ -45,7 +45,7 @@ REQUESTY_MODEL=openai/gpt-4o  # Default model (format: provider/model-name)
 
 - **DSGVO Compliance**: EU-hosted OpenAI models for data privacy requirements
 - **Unified Access**: One API key for 300+ models across multiple providers
-- **Cost Transparency**: Built-in cost tracking in EUR
+- **Cost Transparency**: Built-in cost tracking in USD
 - **Provider Flexibility**: Easy switching between local (Ollama) and cloud providers (Requesty, Anthropic, Gemini)
 - **Model Agnostic**: Use any model without code changes
 
@@ -67,7 +67,7 @@ const response = await llmService.callWithSystemMessage(
 );
 
 // Response includes cost information
-console.log(response.usage.cost); // e.g., 0.0000024 EUR
+console.log(response.usage.cost); // e.g., 0.0000024 USD
 ```
 
 #### Technical Details
