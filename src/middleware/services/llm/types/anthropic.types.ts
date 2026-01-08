@@ -3,7 +3,19 @@
  * Based on Anthropic Messages API: https://docs.anthropic.com/en/api/messages
  */
 
-import { CommonLLMOptions, CommonLLMResponse } from './common.types';
+import { CommonLLMOptions, CommonLLMResponse, ReasoningEffort } from './common.types';
+
+/**
+ * Anthropic Extended Thinking configuration.
+ * Enables the model to show its reasoning process.
+ * @see https://docs.anthropic.com/en/docs/build-with-claude/extended-thinking
+ */
+export interface AnthropicThinkingConfig {
+  /** Type must be 'enabled' to activate extended thinking */
+  type: 'enabled';
+  /** Token budget for thinking (minimum 1024, must be less than max_tokens) */
+  budget_tokens: number;
+}
 
 /**
  * Anthropic-specific request options
@@ -49,6 +61,8 @@ export interface AnthropicAPIRequest {
   stop_sequences?: string[];
   stream?: boolean;
   system?: string;
+  /** Extended thinking configuration for models that support it (Claude 3.5+) */
+  thinking?: AnthropicThinkingConfig;
 }
 
 /**

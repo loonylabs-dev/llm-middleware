@@ -2,16 +2,35 @@ import axios from 'axios';
 import { v4 as uuidv4 } from 'uuid';
 import { logger } from '../../../shared/utils/logging.utils';
 import { BaseLLMProvider } from './base-llm-provider';
-import { LLMProvider, CommonLLMResponse, TokenUsage } from '../types';
+import { LLMProvider, CommonLLMResponse, TokenUsage, ReasoningEffort } from '../types';
 import {
   GeminiRequestOptions,
   GeminiAPIRequest,
   GeminiAPIResponse,
   GeminiResponse,
-  GeminiGenerationConfig
+  GeminiGenerationConfig,
+  GeminiThinkingLevel
 } from '../types/gemini.types';
 import { LLMDebugger, LLMDebugInfo } from '../utils/debug-llm.utils';
 import { DataFlowLoggerService } from '../../data-flow-logger';
+
+/**
+ * Maps provider-agnostic ReasoningEffort to Gemini thinking_level.
+ */
+function mapReasoningEffortToGemini(effort: ReasoningEffort): GeminiThinkingLevel {
+  switch (effort) {
+    case 'none':
+      return 'MINIMAL';  // Gemini doesn't support disabling, use MINIMAL
+    case 'low':
+      return 'LOW';
+    case 'medium':
+      return 'MEDIUM';
+    case 'high':
+      return 'HIGH';
+    default:
+      return 'MEDIUM';  // Safe default
+  }
+}
 
 /**
  * Google Gemini provider implementation with advanced features:
@@ -55,7 +74,8 @@ export class GeminiProvider extends BaseLLMProvider {
       sessionId = uuidv4(),
       chapterNumber,
       pageNumber,
-      pageName
+      pageName,
+      reasoningEffort
     } = options;
 
     // Validate that API key is provided
@@ -81,7 +101,13 @@ export class GeminiProvider extends BaseLLMProvider {
       ...(topP !== undefined && { topP }),
       ...(topK !== undefined && { topK }),
       ...(stopSequences && { stopSequences }),
-      ...(candidateCount !== undefined && { candidateCount })
+      ...(candidateCount !== undefined && { candidateCount }),
+      // Add thinking config for reasoning models (Gemini 3 Flash, etc.)
+      ...(reasoningEffort && {
+        thinkingConfig: {
+          thinkingLevel: mapReasoningEffortToGemini(reasoningEffort)
+        }
+      })
     };
 
     // Build the request payload
@@ -207,11 +233,16 @@ export class GeminiProvider extends BaseLLMProvider {
           .join('\n');
 
         // Normalize token usage to provider-agnostic format
+        // Include thoughtsTokenCount for reasoning models (Gemini 3+)
         const tokenUsage: TokenUsage | undefined = apiResponse.usageMetadata
           ? {
               inputTokens: apiResponse.usageMetadata.promptTokenCount,
               outputTokens: apiResponse.usageMetadata.candidatesTokenCount,
-              totalTokens: apiResponse.usageMetadata.totalTokenCount
+              totalTokens: apiResponse.usageMetadata.totalTokenCount,
+              // Gemini 3+ returns thoughtsTokenCount for reasoning tokens
+              ...(apiResponse.usageMetadata.thoughtsTokenCount !== undefined && {
+                reasoningTokens: apiResponse.usageMetadata.thoughtsTokenCount
+              })
             }
           : undefined;
 

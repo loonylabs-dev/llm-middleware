@@ -3,6 +3,17 @@
  */
 
 /**
+ * Reasoning effort levels for models with thinking/reasoning capabilities.
+ * Maps to provider-specific parameters:
+ * - Gemini: thinking_level (LOW, MEDIUM, HIGH)
+ * - OpenAI o1/o3: reasoning_effort (low, medium, high)
+ * - Anthropic: budget_tokens (1024, 8192, 16384)
+ *
+ * Use 'none' to disable reasoning where supported (e.g., Gemini 2.5+ via OpenAI-compatible API).
+ */
+export type ReasoningEffort = 'none' | 'low' | 'medium' | 'high';
+
+/**
  * Common request options that work across all LLM providers
  */
 export interface CommonLLMOptions {
@@ -36,6 +47,17 @@ export interface CommonLLMOptions {
   /** Page name (for book generation use cases) */
   pageName?: string;
 
+  /**
+   * Controls reasoning/thinking effort for models that support it.
+   * - 'none': Disable reasoning (where supported)
+   * - 'low': Light reasoning, good for simple tasks
+   * - 'medium': Balanced reasoning (often default)
+   * - 'high': Deep reasoning for complex tasks
+   *
+   * @see ReasoningEffort for provider-specific mappings
+   */
+  reasoningEffort?: ReasoningEffort;
+
   /** Provider-specific options (escape hatch) */
   providerSpecific?: Record<string, any>;
 }
@@ -49,8 +71,10 @@ export interface TokenUsage {
   inputTokens: number;
   /** Number of tokens in the output/completion */
   outputTokens: number;
-  /** Total tokens (inputTokens + outputTokens) */
+  /** Total tokens (inputTokens + outputTokens + reasoningTokens) */
   totalTokens: number;
+  /** Reasoning/thinking tokens (Gemini thoughtsTokenCount, OpenAI reasoning_tokens, etc.) */
+  reasoningTokens?: number;
   /** Cost of the request in USD (optional, provider-specific, from Requesty.AI) */
   costUsd?: number;
   /** Cache-related token counts (optional, provider-specific) */

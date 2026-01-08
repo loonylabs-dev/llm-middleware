@@ -3,15 +3,54 @@ import axios from 'axios';
 import { v4 as uuidv4 } from 'uuid';
 import { logger } from '../../../shared/utils/logging.utils';
 import { BaseLLMProvider } from './base-llm-provider';
-import { LLMProvider, CommonLLMResponse, TokenUsage } from '../types';
+import { LLMProvider, CommonLLMResponse, TokenUsage, ReasoningEffort } from '../types';
 import {
   RequestyRequestOptions,
   RequestyAPIRequest,
   RequestyAPIResponse,
-  RequestyResponse
+  RequestyResponse,
+  RequestyReasoningEffort
 } from '../types/requesty.types';
 import { LLMDebugger, LLMDebugInfo } from '../utils/debug-llm.utils';
 import { DataFlowLoggerService } from '../../data-flow-logger';
+
+/**
+ * Check if the model is a Google/Gemini model.
+ * Google Gemini doesn't support 'none' - it needs 'min' for minimal reasoning.
+ */
+function isGeminiModel(model: string): boolean {
+  const lowerModel = model.toLowerCase();
+  return lowerModel.includes('gemini') ||
+         lowerModel.startsWith('google/') ||
+         lowerModel.startsWith('vertex/') ||
+         lowerModel.startsWith('coding/');
+}
+
+/**
+ * Maps provider-agnostic ReasoningEffort to Requesty reasoning_effort.
+ *
+ * Note: Google Gemini doesn't support 'none' - use 'min' instead.
+ * For Gemini models, 'none' is mapped to 'min' (MINIMAL thinking level).
+ */
+function mapReasoningEffort(effort: ReasoningEffort, model: string): RequestyReasoningEffort {
+  // For Gemini models, 'none' doesn't work - map to 'min'
+  if (effort === 'none' && isGeminiModel(model)) {
+    return 'min';
+  }
+
+  switch (effort) {
+    case 'none':
+      return 'none';  // Only for OpenAI models
+    case 'low':
+      return 'low';
+    case 'medium':
+      return 'medium';
+    case 'high':
+      return 'high';
+    default:
+      return 'medium';  // Safe default
+  }
+}
 
 /**
  * Requesty.ai provider implementation
@@ -46,7 +85,8 @@ export class RequestyProvider extends BaseLLMProvider {
       sessionId = uuidv4(),
       chapterNumber,
       pageNumber,
-      pageName
+      pageName,
+      reasoningEffort
     } = options;
 
     // Validate API key
@@ -84,7 +124,10 @@ export class RequestyProvider extends BaseLLMProvider {
         { role: 'user', content: userPrompt }
       ],
       max_tokens: maxTokens,
-      temperature: temperature
+      temperature: temperature,
+      // Add reasoning_effort for models that support it (Gemini 3, OpenAI o1/o3, etc.)
+      // Note: For Gemini, 'none' is mapped to 'min' since Gemini doesn't support 'none'
+      ...(reasoningEffort && { reasoning_effort: mapReasoningEffort(reasoningEffort, model) })
     };
 
     // Prepare debug info

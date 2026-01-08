@@ -1,3 +1,97 @@
+## [2.14.1] - 2026-01-08
+
+### 🔧 Enhanced: Reasoning Token Tracking & Gemini Compatibility
+
+**Added `reasoningTokens` to TokenUsage for accurate cost tracking.**
+
+Reasoning models like Gemini 3 can generate 10-50x more reasoning tokens than output tokens. These are now tracked separately:
+
+```typescript
+const response = await llmService.callWithSystemMessage(...);
+console.log(response.usage);
+// {
+//   inputTokens: 49,
+//   outputTokens: 540,
+//   reasoningTokens: 13143,  // NEW!
+//   totalTokens: 13732
+// }
+```
+
+#### Gemini 2.5 vs 3 Compatibility
+
+**Important discovery:** Google changed the reasoning API between versions:
+- **Gemini 2.5**: Uses `thinking_budget` (integer)
+- **Gemini 3**: Uses `thinking_level` (LOW/HIGH)
+
+**Requesty** currently only supports Gemini 2.5's `thinking_budget`. For Gemini 3, use the Direct Google API:
+
+```typescript
+// Requesty - use Gemini 2.5
+{ provider: LLMProvider.REQUESTY, model: 'google/gemini-2.5-flash' }
+
+// Direct Google API - use Gemini 3
+{ provider: LLMProvider.GOOGLE, model: 'gemini-3-flash-preview' }
+```
+
+#### Smoke Test CLI Arguments
+
+```bash
+npm run test:reasoning:smoke -- google gemini-3-flash-preview
+npm run test:reasoning:smoke -- requesty google/gemini-2.5-flash
+```
+
+---
+
+## [2.14.0] - 2026-01-08
+
+### ✨ New Feature: Reasoning Control
+
+**Added `reasoningEffort` parameter for controlling model thinking/reasoning depth.**
+
+Modern LLM models like Gemini 3 Flash, OpenAI o1/o3, and Anthropic Claude can perform internal "reasoning" before generating responses. This feature allows you to control how much reasoning the model performs, trading off between response quality, speed, and cost.
+
+#### Usage
+
+```typescript
+const response = await llmService.callWithSystemMessage(
+  'Solve this math problem',
+  'You are a helpful assistant',
+  {
+    provider: LLMProvider.REQUESTY,
+    model: 'google/gemini-2.5-flash',  // Use 2.5 for Requesty!
+    reasoningEffort: 'low',  // 'none' | 'low' | 'medium' | 'high'
+  }
+);
+```
+
+#### Available Levels
+
+| Level | Description | Best For |
+|-------|-------------|----------|
+| `none` | Minimal reasoning | Simple tasks, fastest responses |
+| `low` | Light reasoning | Standard tasks, cost-sensitive |
+| `medium` | Balanced | General use |
+| `high` | Deep reasoning | Complex problems |
+
+#### Provider Mappings
+
+- **Requesty**: Maps to `reasoning_effort` (Gemini 2.5 only!)
+- **Google Gemini Direct**: Maps to `thinkingConfig.thinkingLevel`
+- **Anthropic Claude**: Maps to `thinking.budget_tokens`
+
+#### Testing
+
+```bash
+npm run test:reasoning:smoke    # Quick smoke test
+npm run test:integration:reasoning  # Full integration tests
+```
+
+#### Documentation
+
+See [docs/reasoning-control.md](docs/reasoning-control.md) for detailed documentation.
+
+---
+
 ## [2.13.1] - 2025-12-09
 
 ### 🐛 Bug Fix: Add Accept Header for Bedrock Models

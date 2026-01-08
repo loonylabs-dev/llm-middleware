@@ -3,7 +3,21 @@
  * Based on Google Gemini API: https://ai.google.dev/api/rest
  */
 
-import { CommonLLMOptions, CommonLLMResponse } from './common.types';
+import { CommonLLMOptions, CommonLLMResponse, ReasoningEffort } from './common.types';
+
+/**
+ * Gemini thinking level for models with reasoning capabilities (Gemini 3 Flash, etc.)
+ * Maps to the thinking_level parameter in Gemini API.
+ */
+export type GeminiThinkingLevel = 'THINKING_LEVEL_UNSPECIFIED' | 'MINIMAL' | 'LOW' | 'MEDIUM' | 'HIGH';
+
+/**
+ * Gemini thinking configuration for reasoning models
+ */
+export interface GeminiThinkingConfig {
+  /** The level of thinking effort the model should use */
+  thinkingLevel?: GeminiThinkingLevel;
+}
 
 /**
  * Gemini-specific request options
@@ -53,6 +67,8 @@ export interface GeminiGenerationConfig {
   candidateCount?: number;
   maxOutputTokens?: number;
   stopSequences?: string[];
+  /** Thinking configuration for reasoning models (Gemini 3 Flash, etc.) */
+  thinkingConfig?: GeminiThinkingConfig;
 }
 
 /**
@@ -95,6 +111,8 @@ export interface GeminiUsageMetadata {
   promptTokenCount: number;
   candidatesTokenCount: number;
   totalTokenCount: number;
+  /** Reasoning/thinking tokens for Gemini 3+ models with thinking enabled */
+  thoughtsTokenCount?: number;
 }
 
 /**

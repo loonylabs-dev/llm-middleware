@@ -2,15 +2,36 @@ import axios from 'axios';
 import { v4 as uuidv4 } from 'uuid';
 import { logger } from '../../../shared/utils/logging.utils';
 import { BaseLLMProvider } from './base-llm-provider';
-import { LLMProvider, CommonLLMResponse, TokenUsage } from '../types';
+import { LLMProvider, CommonLLMResponse, TokenUsage, ReasoningEffort } from '../types';
 import {
   AnthropicRequestOptions,
   AnthropicAPIRequest,
   AnthropicAPIResponse,
-  AnthropicResponse
+  AnthropicResponse,
+  AnthropicThinkingConfig
 } from '../types/anthropic.types';
 import { LLMDebugger, LLMDebugInfo } from '../utils/debug-llm.utils';
 import { DataFlowLoggerService } from '../../data-flow-logger';
+
+/**
+ * Maps provider-agnostic ReasoningEffort to Anthropic budget_tokens.
+ * Returns undefined if thinking should be disabled.
+ * @see https://docs.anthropic.com/en/docs/build-with-claude/extended-thinking
+ */
+function mapReasoningEffortToAnthropicBudget(effort: ReasoningEffort): number | undefined {
+  switch (effort) {
+    case 'none':
+      return undefined;  // Disable thinking
+    case 'low':
+      return 1024;  // Minimum allowed budget
+    case 'medium':
+      return 8192;
+    case 'high':
+      return 16384;
+    default:
+      return undefined;  // Don't enable by default
+  }
+}
 
 /**
  * Anthropic provider implementation with advanced features:
@@ -53,7 +74,8 @@ export class AnthropicProvider extends BaseLLMProvider {
       sessionId = uuidv4(),
       chapterNumber,
       pageNumber,
-      pageName
+      pageName,
+      reasoningEffort
     } = options;
 
     // Validate that API key is provided
@@ -78,6 +100,12 @@ export class AnthropicProvider extends BaseLLMProvider {
       'anthropic-version': this.API_VERSION
     };
 
+    // Build thinking config if reasoningEffort is specified
+    const thinkingBudget = reasoningEffort ? mapReasoningEffortToAnthropicBudget(reasoningEffort) : undefined;
+    const thinkingConfig: AnthropicThinkingConfig | undefined = thinkingBudget
+      ? { type: 'enabled', budget_tokens: thinkingBudget }
+      : undefined;
+
     // Build the request payload
     const requestPayload: AnthropicAPIRequest = {
       model: model,
@@ -89,7 +117,9 @@ export class AnthropicProvider extends BaseLLMProvider {
       system: systemMessage,
       ...(top_p !== undefined && { top_p }),
       ...(top_k !== undefined && { top_k }),
-      ...(stop_sequences && { stop_sequences })
+      ...(stop_sequences && { stop_sequences }),
+      // Add thinking config for extended thinking (Claude 3.5+)
+      ...(thinkingConfig && { thinking: thinkingConfig })
     };
 
     // Get client request body from global scope
