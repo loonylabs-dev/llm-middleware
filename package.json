@@ -30,7 +30,7 @@
     "test:reasoning:smoke": "ts-node tests/manual/reasoning-smoke-test.ts",
     "test:ci": "jest --runInBand --ci --coverage",
     "lint": "eslint src/**/*.ts",
-    "clean": "rm -rf dist",
+    "clean": "node -e \"const fs=require('fs');if(fs.existsSync('dist'))fs.rmSync('dist',{recursive:true})\"",
     "prepare": "npm run build",
     "prepublishOnly": "npm run clean && npm run build && npm run test"
   },
