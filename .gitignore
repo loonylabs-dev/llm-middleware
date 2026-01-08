@@ -138,4 +138,11 @@ test-results/
 # Claude Code specific files
 CLAUDE.md
 .claude/settings.local.json
+.claude/claude-workflows/
+.claude/commands/
 package-lock.json
+
+# Project-specific ignores
+.github/
+docs/stories/
+docs/templates/
