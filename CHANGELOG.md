@@ -56,15 +56,16 @@ Vertex AI properly handles the different reasoning APIs:
 
 | Model | Parameter | Values |
 |-------|-----------|--------|
-| Gemini 2.5 | `thinkingBudget` | 0 (disabled) to 24576 |
-| Gemini 3.x | `thinkingLevel` | MINIMAL, LOW, MEDIUM, HIGH |
+| Gemini 2.5 | `thinkingBudget` | 0 (disabled), 1024, 6144, 12288 |
+| Gemini 3 Flash | `thinkingLevel` | MINIMAL, LOW, MEDIUM, HIGH |
+| Gemini 3 Pro | `thinkingLevel` | LOW, HIGH |
 
 ```typescript
 // Reasoning with Gemini 2.5
 await llmService.callWithSystemMessage(prompt, system, {
   provider: LLMProvider.VERTEX_AI,
   model: 'gemini-2.5-flash',
-  reasoningEffort: 'high'  // → thinkingBudget: 24576
+  reasoningEffort: 'high'  // → thinkingBudget: 12288
 });
 
 // Reasoning with Gemini 3
@@ -97,6 +98,8 @@ VERTEX_AI_MODEL=gemini-2.5-flash # Default model
 | `europe-west9` | Paris, France |
 | `europe-north1` | Finland |
 | `europe-west6` | Zurich, Switzerland |
+
+**Note:** Preview models (e.g., `gemini-3-flash-preview`) automatically use the global endpoint and do not have EU data residency guarantees. Regional endpoints will be available when these models reach GA.
 
 #### Security
 
