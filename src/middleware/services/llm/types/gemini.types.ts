@@ -12,11 +12,35 @@ import { CommonLLMOptions, CommonLLMResponse, ReasoningEffort } from './common.t
 export type GeminiThinkingLevel = 'THINKING_LEVEL_UNSPECIFIED' | 'MINIMAL' | 'LOW' | 'MEDIUM' | 'HIGH';
 
 /**
- * Gemini thinking configuration for reasoning models
+ * Gemini thinking configuration for reasoning models.
+ * - Gemini 3.x: Uses thinkingLevel (MINIMAL/LOW/MEDIUM/HIGH)
+ * - Gemini 2.5: Uses thinkingBudget (integer 0-24576)
+ *
+ * Note: Cannot use both thinkingLevel and thinkingBudget in the same request.
  */
 export interface GeminiThinkingConfig {
-  /** The level of thinking effort the model should use */
+  /**
+   * Thinking level for Gemini 3.x models.
+   * - MINIMAL: Minimum thinking (Gemini 3 Flash only)
+   * - LOW: Light reasoning for simple tasks
+   * - MEDIUM: Balanced reasoning (Gemini 3 Flash only)
+   * - HIGH: Deep reasoning (default for complex tasks)
+   */
   thinkingLevel?: GeminiThinkingLevel;
+
+  /**
+   * Thinking token budget for Gemini 2.5 models.
+   * - 0: Disable thinking
+   * - -1: Dynamic (let model decide)
+   * - 1-24576: Fixed token budget
+   */
+  thinkingBudget?: number;
+
+  /**
+   * If true, includes the model's thoughts in the response.
+   * Required for Vertex AI v1beta1 to return thoughtsTokenCount.
+   */
+  includeThoughts?: boolean;
 }
 
 /**

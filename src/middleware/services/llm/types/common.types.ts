@@ -116,7 +116,9 @@ export enum LLMProvider {
   OPENAI = 'openai',
   ANTHROPIC = 'anthropic',
   GOOGLE = 'google',
-  REQUESTY = 'requesty'
+  REQUESTY = 'requesty',
+  /** Google Vertex AI - Service Account auth, EU hosting support */
+  VERTEX_AI = 'vertex_ai'
 }
 
 /**

@@ -1,3 +1,154 @@
+## [2.15.0] - 2026-01-15
+
+### ✨ New Feature: Google Vertex AI Provider (CDPA/GDPR Compliant)
+
+**Added Google Vertex AI as a new provider for enterprise-grade, CDPA/GDPR-compliant LLM usage with EU data residency.**
+
+This release introduces a major architectural refactoring of the Gemini provider layer, enabling both the existing Direct API and the new Vertex AI provider to share common logic while supporting their different authentication mechanisms.
+
+#### Why Vertex AI?
+
+- **CDPA/GDPR Compliance**: Service Account authentication with EU data residency guarantees
+- **Enterprise Security**: No API keys in requests - uses OAuth2 Bearer tokens
+- **Regional Control**: Choose your data processing region (e.g., `europe-west3` for Frankfurt)
+- **Same Gemini Models**: Access Gemini 2.5, 3.x, and future models via Google Cloud
+
+#### Architecture: Abstract Provider Pattern
+
+The Gemini providers have been refactored into a clean inheritance hierarchy:
+
+```
+providers/gemini/
+├── gemini-base.provider.ts     # Abstract base with shared logic
+├── gemini-direct.provider.ts   # API Key auth (existing)
+├── vertex-ai.provider.ts       # Service Account auth (NEW)
+└── index.ts                    # Module exports
+```
+
+**Benefits:**
+- Maximum code reuse (request building, response parsing, reasoning mapping)
+- Clear separation of authentication mechanisms
+- Easy to test each provider independently
+- Future-proof for additional Google Cloud AI services
+
+#### Usage
+
+```typescript
+import { LLMService, LLMProvider } from '@loonylabs/llm-middleware';
+
+const llmService = new LLMService();
+
+// Use Vertex AI with EU data residency
+const response = await llmService.callWithSystemMessage(
+  'Explain quantum computing',
+  'You are a helpful assistant',
+  {
+    provider: LLMProvider.VERTEX_AI,
+    model: 'gemini-2.5-flash',
+    // Region defaults to europe-west3 (Frankfurt)
+  }
+);
+```
+
+#### Reasoning Control (Gemini 2.5 vs 3.x)
+
+Vertex AI properly handles the different reasoning APIs:
+
+| Model | Parameter | Values |
+|-------|-----------|--------|
+| Gemini 2.5 | `thinkingBudget` | 0 (disabled) to 24576 |
+| Gemini 3.x | `thinkingLevel` | MINIMAL, LOW, MEDIUM, HIGH |
+
+```typescript
+// Reasoning with Gemini 2.5
+await llmService.callWithSystemMessage(prompt, system, {
+  provider: LLMProvider.VERTEX_AI,
+  model: 'gemini-2.5-flash',
+  reasoningEffort: 'high'  // → thinkingBudget: 24576
+});
+
+// Reasoning with Gemini 3
+await llmService.callWithSystemMessage(prompt, system, {
+  provider: LLMProvider.VERTEX_AI,
+  model: 'gemini-3-flash-preview',
+  reasoningEffort: 'high'  // → thinkingLevel: HIGH
+});
+```
+
+#### Configuration
+
+```bash
+# Required
+GOOGLE_CLOUD_PROJECT=your-project-id
+GOOGLE_APPLICATION_CREDENTIALS=./vertex-ai-service-account.json
+
+# Optional
+VERTEX_AI_REGION=europe-west3    # Default: europe-west3 (Frankfurt)
+VERTEX_AI_MODEL=gemini-2.5-flash # Default model
+```
+
+#### Supported EU Regions
+
+| Region | Location |
+|--------|----------|
+| `europe-west3` | Frankfurt, Germany (default) |
+| `europe-west1` | Belgium |
+| `europe-west4` | Netherlands |
+| `europe-west9` | Paris, France |
+| `europe-north1` | Finland |
+| `europe-west6` | Zurich, Switzerland |
+
+#### Security
+
+- Service account JSON files are automatically excluded via `.gitignore`
+- Supports multiple credential sources:
+  - `GOOGLE_APPLICATION_CREDENTIALS` (file path)
+  - `VERTEX_AI_SERVICE_ACCOUNT_KEY` (JSON string for CI/CD)
+  - Direct options in code
+
+#### Testing
+
+```bash
+# Smoke test with Vertex AI
+npm run test:vertex:smoke
+npm run test:vertex:smoke gemini-2.5-flash
+npm run test:vertex:smoke gemini-3-flash-preview
+
+# Unit tests for generation detection and mapping
+npm run test:unit
+```
+
+#### Breaking Changes
+
+**None.** The existing `GeminiProvider` (Direct API) continues to work unchanged. The re-export in `gemini-provider.ts` maintains full backward compatibility.
+
+#### Files Added
+
+- `src/middleware/services/llm/providers/gemini/gemini-base.provider.ts`
+- `src/middleware/services/llm/providers/gemini/gemini-direct.provider.ts`
+- `src/middleware/services/llm/providers/gemini/vertex-ai.provider.ts`
+- `src/middleware/services/llm/providers/gemini/index.ts`
+- `src/middleware/services/llm/types/vertex-ai.types.ts`
+- `tests/unit/services/gemini/gemini-base.provider.test.ts`
+- `tests/manual/vertex-ai-smoke-test.ts`
+
+#### Files Modified
+
+- `src/middleware/services/llm/providers/gemini-provider.ts` (backward compat re-export)
+- `src/middleware/services/llm/llm.service.ts` (register VERTEX_AI provider)
+- `src/middleware/services/llm/types/common.types.ts` (add VERTEX_AI enum)
+- `src/middleware/services/llm/types/gemini.types.ts` (add thinkingBudget)
+- `src/middleware/services/llm/types/index.ts` (export vertex-ai types)
+- `.gitignore` (exclude service account files)
+- `.env.example` (Vertex AI configuration)
+- `package.json` (add google-auth-library, new scripts)
+
+#### Dependencies
+
+- Added: `google-auth-library@10.5.0` for Service Account authentication
+
+---
+
 ## [2.14.1] - 2026-01-08
 
 ### 🔧 Enhanced: Reasoning Token Tracking & Gemini Compatibility
