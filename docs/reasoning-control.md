@@ -15,9 +15,13 @@ Google changed the reasoning API between Gemini 2.5 and Gemini 3:
 | Version | API Parameter | Supported Values |
 |---------|---------------|------------------|
 | **Gemini 2.5** | `thinking_budget` | Integer (0-24576), `-1` for auto |
-| **Gemini 3** | `thinking_level` | `LOW`, `HIGH` (cannot be disabled!) |
+| **Gemini 3 Flash** | `thinking_level` | `MINIMAL`, `LOW`, `MEDIUM`, `HIGH` |
+| **Gemini 3 Pro** | `thinking_level` | `LOW`, `HIGH` only |
 
-**Requesty** currently only supports `thinking_budget` (Gemini 2.5). For Gemini 3, use the **Direct Google API**.
+**Provider Support:**
+- ✅ **Vertex AI**: Both APIs supported (recommended for EU/CDPA compliance)
+- ✅ **Gemini Direct API**: Both APIs supported
+- ⚠️ **Requesty**: Only Gemini 2.5 (`thinking_budget`) - Gemini 3 ignores the parameter
 
 ## Usage
 
@@ -38,6 +42,23 @@ const response = await llmService.callWithSystemMessage(
   }
 );
 ```
+
+### Via Vertex AI (Recommended for EU/CDPA)
+
+```typescript
+const response = await llmService.callWithSystemMessage(
+  'Solve this complex math problem...',
+  'You are a careful reasoning assistant.',
+  {
+    provider: LLMProvider.VERTEX_AI,
+    model: 'gemini-2.5-flash',  // or 'gemini-3-flash-preview'
+    reasoningEffort: 'high',
+    // region defaults to europe-west3 (Frankfurt)
+  }
+);
+```
+
+**Note:** Gemini 3 Preview models automatically use the global endpoint (no EU data residency). Regional endpoints will be available when Gemini 3 reaches GA.
 
 ### Via Direct Google API (Gemini 3)
 
@@ -81,18 +102,29 @@ The `reasoningEffort` maps to `reasoning_effort` → `thinking_budget`:
 - `google/gemini-3-flash-preview` ❌ (parameter ignored!)
 - `vertex/gemini-3-flash-preview` ❌ (parameter ignored!)
 
-### Google Gemini Direct API (Gemini 3)
+### Vertex AI / Google Gemini Direct API (Gemini 2.5)
+
+The `reasoningEffort` maps to `thinkingConfig.thinkingBudget`:
+
+| reasoningEffort | thinkingBudget | Effect |
+|-----------------|----------------|--------|
+| `none` | `0` | Thinking disabled |
+| `low` | `1024` | Minimal thinking |
+| `medium` | `6144` | Balanced |
+| `high` | `12288` | Deep thinking |
+
+### Vertex AI / Google Gemini Direct API (Gemini 3)
 
 The `reasoningEffort` maps to `thinkingConfig.thinkingLevel`:
 
-| reasoningEffort | thinking_level |
-|-----------------|----------------|
-| `none` | `MINIMAL` |
-| `low` | `LOW` |
-| `medium` | `MEDIUM` |
-| `high` | `HIGH` |
+| reasoningEffort | thinking_level | Gemini 3 Flash | Gemini 3 Pro |
+|-----------------|----------------|----------------|--------------|
+| `none` | `MINIMAL` | ✅ ~0 tokens | ❌ → LOW |
+| `low` | `LOW` | ✅ ~0 tokens | ✅ |
+| `medium` | `MEDIUM` | ✅ ~1400 tokens | ❌ → LOW |
+| `high` | `HIGH` | ✅ ~2000 tokens | ✅ |
 
-**Note:** Gemini 3 cannot fully disable thinking - `none` maps to `MINIMAL`.
+**Note:** Gemini 3 cannot fully disable thinking - `none` maps to `MINIMAL` (Flash) or `LOW` (Pro).
 
 ### Anthropic Claude
 
@@ -127,7 +159,17 @@ This is essential for cost tracking, as reasoning tokens can be 10-50x the outpu
 
 ## Testing
 
-### Smoke Test
+### Vertex AI Smoke Test
+
+```bash
+# Gemini 2.5 (regional endpoint - EU compliant)
+npm run test:vertex:smoke gemini-2.5-flash
+
+# Gemini 3 Preview (global endpoint - no EU data residency)
+npm run test:vertex:smoke gemini-3-flash-preview
+```
+
+### General Reasoning Smoke Test
 
 Run a quick smoke test with CLI arguments:
 
@@ -152,18 +194,25 @@ npm run test:integration:reasoning
 
 ### Environment Setup
 
-For Requesty:
+For Vertex AI (recommended):
+```bash
+GOOGLE_CLOUD_PROJECT=your_project_id
+VERTEX_AI_REGION=europe-west3           # Default: Frankfurt
+GOOGLE_APPLICATION_CREDENTIALS=./vertex-ai-service-account.json
 ```
+
+For Requesty:
+```bash
 REQUESTY_API_KEY=your_api_key_here
 ```
 
 For Direct Google API:
-```
+```bash
 GEMINI_API_KEY=your_api_key_here
 ```
 
 Optional:
-```
+```bash
 TEST_REASONING_MODEL=google/gemini-2.5-flash
 LLM_INTEGRATION_TESTS=true
 DEBUG_LLM_REQUESTS=true
@@ -171,23 +220,33 @@ DEBUG_LLM_REQUESTS=true
 
 ## Token Usage Comparison
 
-Example with Gemini 3 Flash (Direct API) for a math problem:
+### Gemini 2.5 Flash (Vertex AI)
 
 | reasoningEffort | Output Tokens | Reasoning Tokens | Total | Time |
 |-----------------|---------------|------------------|-------|------|
-| `none` (MINIMAL) | ~200 | ~500 | ~750 | ~2s |
-| `low` | ~250 | ~3000 | ~3300 | ~15s |
-| `medium` | ~280 | ~8000 | ~8330 | ~40s |
-| `high` | ~540 | ~13000 | ~13600 | ~80s |
+| `none` | ~1500 | 0 | ~4000 | ~8s |
+| `low` | ~1400 | ~800 | ~6000 | ~10s |
+| `medium` | ~1400 | ~5000-7000 | ~8000 | ~15s |
+| `high` | ~1400 | ~8000-10000 | ~12000 | ~20s |
 
-The reasoning tokens dominate the total cost for complex tasks!
+### Gemini 3 Flash Preview (Vertex AI)
+
+| reasoningEffort | Output Tokens | Reasoning Tokens | Total | Time |
+|-----------------|---------------|------------------|-------|------|
+| `none` (MINIMAL) | ~1500 | 0 | ~1700 | ~11s |
+| `low` (LOW) | ~1300 | 0 | ~1500 | ~12s |
+| `medium` (MEDIUM) | ~1400 | ~1400 | ~3000 | ~22s |
+| `high` (HIGH) | ~1400 | ~2000 | ~3500 | ~25s |
+
+**Note:** Gemini 3 Flash uses less reasoning tokens than Gemini 2.5 for similar tasks. MINIMAL and LOW both produce 0 reasoning tokens.
 
 ## Recommendations
 
-1. **For simple tasks**: Use `reasoningEffort: 'none'` to minimize cost and latency
-2. **For Gemini via Requesty**: Use `google/gemini-2.5-flash` (Gemini 3 ignores the parameter)
-3. **For Gemini 3**: Use Direct Google API (`LLMProvider.GOOGLE`)
-4. **Track costs**: Always check `response.usage.reasoningTokens` for cost analysis
+1. **For EU/CDPA compliance**: Use `LLMProvider.VERTEX_AI` with regional endpoints
+2. **For simple tasks**: Use `reasoningEffort: 'none'` to minimize cost and latency
+3. **For Gemini via Requesty**: Use `google/gemini-2.5-flash` (Gemini 3 ignores the parameter)
+4. **For Gemini 3 Preview**: Use Vertex AI or Direct Google API (Requesty doesn't support it)
+5. **Track costs**: Always check `response.usage.reasoningTokens` for cost analysis
 
 ## References
 

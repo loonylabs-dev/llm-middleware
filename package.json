@@ -1,6 +1,6 @@
 {
   "name": "@loonylabs/llm-middleware",
-  "version": "2.14.1",
+  "version": "2.15.0",
   "description": "Complete middleware infrastructure for LLM-based backends with multi-provider support (Ollama, Anthropic, OpenAI, Google)",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -25,6 +25,8 @@
     "test:provider:ollama": "TEST_PROVIDER=ollama ts-node tests/manual/provider-smoke-test.ts",
     "test:provider:anthropic": "TEST_PROVIDER=anthropic ts-node tests/manual/provider-smoke-test.ts",
     "test:provider:requesty": "TEST_PROVIDER=requesty ts-node tests/manual/provider-smoke-test.ts",
+    "test:provider:vertex": "ts-node tests/manual/vertex-ai-smoke-test.ts",
+    "test:vertex:smoke": "ts-node tests/manual/vertex-ai-smoke-test.ts",
     "test:integration:reasoning": "LLM_INTEGRATION_TESTS=true jest tests/integration/reasoning-control.integration.test.ts --testTimeout=120000",
     "test:live": "LLM_INTEGRATION_TESTS=true jest tests/integration/*.integration.test.ts --testTimeout=120000",
     "test:reasoning:smoke": "ts-node tests/manual/reasoning-smoke-test.ts",
@@ -42,6 +44,8 @@
     "openai",
     "anthropic",
     "google",
+    "vertex-ai",
+    "gemini",
     "multi-provider",
     "backend",
     "typescript",
@@ -69,6 +73,7 @@
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
     "express": "^4.18.2",
+    "google-auth-library": "^10.5.0",
     "gpt-tokenizer": "^3.2.0",
     "uuid": "^11.1.0"
   },

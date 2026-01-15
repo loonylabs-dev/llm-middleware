@@ -2,7 +2,7 @@
 
 # 🚀 LLM Middleware
 
-*A comprehensive TypeScript middleware library for building robust multi-provider LLM backends. Currently supports Ollama, Anthropic Claude, Google Gemini, and Requesty.AI (300+ models, EU-hosted OpenAI). Features advanced JSON cleaning, logging, error handling, cost tracking, and more.*
+*A comprehensive TypeScript middleware library for building robust multi-provider LLM backends. Currently supports Ollama, Anthropic Claude, Google Gemini (Direct API & Vertex AI), and Requesty.AI (300+ models). Features EU data residency via Vertex AI, reasoning control, advanced JSON cleaning, logging, error handling, cost tracking, and more.*
 
 <!-- Horizontal Badge Navigation Bar -->
 [![npm version](https://img.shields.io/npm/v/@loonylabs/llm-middleware.svg?style=for-the-badge&logo=npm&logoColor=white)](https://www.npmjs.com/package/@loonylabs/llm-middleware)
@@ -42,9 +42,13 @@
 - 🤖 **Multi-Provider Architecture**: Extensible provider system with strategy pattern
   - ✅ **Ollama**: Fully supported with comprehensive parameter control
   - ✅ **Anthropic Claude**: Complete support for Claude models (Opus, Sonnet, Haiku)
-  - ✅ **Google Gemini**: Complete support for Gemini models (Pro, Flash)
-  - ✅ **Requesty.AI**: 300+ models via unified API, EU-hosted OpenAI (DSGVO-compliant), built-in cost tracking
+  - ✅ **Google Gemini Direct**: Complete support for Gemini models via API Key
+  - ✅ **Google Vertex AI**: CDPA/GDPR-compliant with EU data residency (Service Account auth)
+  - ✅ **Requesty.AI**: 300+ models via unified API, built-in cost tracking
   - 🔌 **Pluggable**: Easy to add custom providers - see [LLM Providers Guide](docs/LLM_PROVIDERS.md)
+- 🧠 **Reasoning Control**: Control model thinking effort via `reasoningEffort` parameter
+  - ✨ **v2.14.0**: Supports Gemini 2.5 (`thinkingBudget`) and Gemini 3 (`thinkingLevel`)
+  - 📊 Track reasoning tokens separately for cost analysis
 - 🧹 **JSON Cleaning**: Recipe-based JSON repair system with automatic strategy selection
   - ✨ **v2.4.0**: Enhanced array extraction support - properly handles JSON arrays `[...]` in addition to objects `{...}`
 - 🎨 **FlatFormatter System**: Advanced data formatting for LLM consumption
@@ -166,7 +170,7 @@ const response2 = await llmService.call(
   }
 );
 
-// Use Google Gemini
+// Use Google Gemini (Direct API)
 const response3 = await llmService.call(
   "What is machine learning?",
   {
@@ -175,6 +179,18 @@ const response3 = await llmService.call(
     authToken: process.env.GEMINI_API_KEY,
     maxTokens: 1024,
     temperature: 0.7
+  }
+);
+
+// Use Google Vertex AI (EU data residency, CDPA/GDPR compliant)
+const response3b = await llmService.call(
+  "Explain GDPR compliance",
+  {
+    provider: LLMProvider.VERTEX_AI,
+    model: "gemini-2.5-flash",
+    // Uses Service Account auth (GOOGLE_APPLICATION_CREDENTIALS)
+    // Region defaults to europe-west3 (Frankfurt)
+    reasoningEffort: 'medium'  // Control thinking effort
   }
 );
 
@@ -334,12 +350,18 @@ MODEL1_TOKEN=optional-auth-token   # Optional: For authenticated providers
 ANTHROPIC_API_KEY=your_anthropic_api_key_here    # Your Anthropic API key
 ANTHROPIC_MODEL=claude-3-5-sonnet-20241022       # Default Claude model
 
-# Google Gemini API Configuration (Optional)
+# Google Gemini Direct API Configuration (Optional)
 GEMINI_API_KEY=your_gemini_api_key_here          # Your Google Gemini API key
 GEMINI_MODEL=gemini-1.5-pro                      # Default Gemini model
+
+# Google Vertex AI Configuration (Optional - for CDPA/GDPR compliance)
+GOOGLE_CLOUD_PROJECT=your_project_id             # Google Cloud Project ID
+VERTEX_AI_REGION=europe-west3                    # EU region (Frankfurt)
+VERTEX_AI_MODEL=gemini-2.5-flash                 # Default Vertex AI model
+GOOGLE_APPLICATION_CREDENTIALS=./vertex-ai-service-account.json  # Service Account
 ```
 
-**Multi-Provider Support:** The middleware is fully integrated with **Ollama**, **Anthropic Claude**, and **Google Gemini**. Support for OpenAI is planned. See the [LLM Providers Guide](docs/LLM_PROVIDERS.md) for details on the provider system and how to use or add providers.
+**Multi-Provider Support:** The middleware is fully integrated with **Ollama**, **Anthropic Claude**, **Google Gemini** (Direct API & Vertex AI), and **Requesty.AI**. See the [LLM Providers Guide](docs/LLM_PROVIDERS.md) for details on the provider system and how to use or add providers.
 
 </details>
 
@@ -369,6 +391,7 @@ src/
 - [Getting Started Guide](docs/GETTING_STARTED.md)
 - [Architecture Overview](docs/ARCHITECTURE.md)
 - [LLM Providers Guide](docs/LLM_PROVIDERS.md) - Multi-provider architecture and how to use different LLM services
+- [Reasoning Control Guide](docs/reasoning-control.md) - Control model thinking with `reasoningEffort` parameter
 - [LLM Provider Parameters](docs/OLLAMA_PARAMETERS.md) - Ollama-specific parameter reference and presets
 - [Request Formatting Guide](docs/REQUEST_FORMATTING.md) - FlatFormatter vs RequestFormatterService
 - [Performance Monitoring](docs/PERFORMANCE_MONITORING.md) - Metrics and logging
