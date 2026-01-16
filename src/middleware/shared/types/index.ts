@@ -9,6 +9,8 @@ export interface LLMModelConfig {
   bearerToken?: string;
   temperature: number;
   description?: string;
+  /** Region for Vertex AI (e.g., 'europe-west1'). Optional for other providers. */
+  region?: string;
 }
 
 // Validated config with required name

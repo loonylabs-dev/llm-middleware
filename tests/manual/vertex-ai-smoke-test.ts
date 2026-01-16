@@ -15,7 +15,12 @@
  * Required environment variables:
  *   - GOOGLE_CLOUD_PROJECT: Your Google Cloud Project ID
  *   - GOOGLE_APPLICATION_CREDENTIALS: Path to service account JSON
- *   - VERTEX_AI_REGION: (optional) Default: europe-west3
+ *
+ * Optional environment variables:
+ *   - VERTEX_AI_REGION: Default region (europe-west3)
+ *
+ * Note: Since v2.16.0, region can also be set directly in the options:
+ *   llmService.callWithSystemMessage(prompt, system, { region: 'europe-west1' })
  *
  * Setup:
  *   1. Create a service account in Google Cloud Console
@@ -84,6 +89,8 @@ async function runReasoningTest(
         reasoningEffort: reasoningEffort,
         maxTokens: 16000,
         temperature: 0.7,
+        // Region can be set directly in options (v2.16.0+) or via VERTEX_AI_REGION env var
+        region: REGION,
         debugContext: `vertex-ai-smoke-${reasoningEffort}`,
       }
     );
@@ -139,6 +146,8 @@ async function runBasicTest(llmService: LLMService): Promise<boolean> {
         model: MODEL,
         maxTokens: 100,
         temperature: 0,
+        // Region can be set directly in options (v2.16.0+) or via VERTEX_AI_REGION env var
+        region: REGION,
         debugContext: 'vertex-ai-basic-test',
       }
     );

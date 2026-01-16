@@ -206,6 +206,8 @@ export abstract class BaseAIUseCase<
           maxTokens: validatedParams.numPredict,
           // Ollama-specific options (includes num_predict, num_ctx, num_batch, etc.)
           ...ModelParameterManagerService.toOllamaOptions(validatedParams),
+          // Vertex AI region (passed through to VertexAIProvider)
+          ...(this.modelConfig.region && { region: this.modelConfig.region }),
           debugContext: this.constructor.name
         }
       );

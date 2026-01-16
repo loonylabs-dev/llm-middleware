@@ -35,6 +35,9 @@ export interface CommonLLMOptions {
   /** Debug context for logging */
   debugContext?: string;
 
+  /** Region for Vertex AI (e.g., 'europe-west1'). Ignored by other providers. */
+  region?: string;
+
   /** Session ID for conversation continuity */
   sessionId?: string;
 

@@ -1,3 +1,62 @@
+## [2.16.0] - 2026-01-16
+
+### ✨ New Feature: Per-Model Region Configuration for Vertex AI
+
+**Added `region` field to model configuration, enabling per-model region settings for Vertex AI.**
+
+This enhancement allows applications to store the Vertex AI region directly in their model configuration (e.g., database), making it possible to have different models use different regions without relying solely on environment variables.
+
+#### Why This Matters
+
+- **Per-Model Flexibility**: Configure region per model (e.g., EU region for production, global for preview models)
+- **Database-Driven Config**: Store region alongside other model metadata in your database
+- **Cleaner Architecture**: Region flows through the config layer instead of requiring environment overrides
+
+#### Changes
+
+**`LLMModelConfig` / `ValidatedLLMModelConfig`** (new optional field):
+```typescript
+interface LLMModelConfig {
+  name: string;
+  baseUrl: string;
+  bearerToken?: string;
+  temperature: number;
+  description?: string;
+  region?: string;  // NEW: e.g., 'europe-west1'
+}
+```
+
+**`CommonLLMOptions`** (new optional field):
+```typescript
+interface CommonLLMOptions {
+  // ... existing fields
+  region?: string;  // NEW: Passed through to VertexAIProvider
+}
+```
+
+**`BaseAIUseCase`**: Now automatically passes `region` from model config to the LLM service.
+
+#### Usage Example
+
+```typescript
+// In your application's model config (e.g., from database)
+const modelConfig: ValidatedLLMModelConfig = {
+  name: 'gemini-2.5-flash',
+  baseUrl: '',  // Not needed for Vertex AI
+  temperature: 0.7,
+  region: 'europe-west1'  // EU data residency
+};
+
+// Region is automatically passed to VertexAIProvider
+```
+
+#### Backward Compatible
+
+- Region is optional - existing configurations work without changes
+- If not specified, VertexAIProvider falls back to `VERTEX_AI_REGION` env var or default (`europe-west3`)
+
+---
+
 ## [2.15.0] - 2026-01-15
 
 ### ✨ New Feature: Google Vertex AI Provider (CDPA/GDPR Compliant)
