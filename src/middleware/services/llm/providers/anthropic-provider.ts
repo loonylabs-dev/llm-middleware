@@ -144,7 +144,10 @@ export class AnthropicProvider extends BaseLLMProvider {
       sessionId: sessionId,
       chapterNumber: chapterNumber,
       pageNumber: pageNumber,
-      pageName: pageName
+      pageName: pageName,
+      // Request parameters for logging (since 2.17.0)
+      temperature,
+      reasoningEffort,
     };
 
     // Log request

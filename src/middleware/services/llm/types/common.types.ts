@@ -155,4 +155,8 @@ export interface LLMDebugInfo {
   chapterNumber?: number;
   pageNumber?: number;
   pageName?: string;
+
+  // Request parameters for logging (since 2.17.0)
+  temperature?: number;
+  reasoningEffort?: ReasoningEffort;
 }

@@ -165,7 +165,7 @@ export abstract class BaseAIUseCase<
 
     // Get parameter overrides from the use case
     const overrides = this.getParameterOverrides();
-    
+
     // Get effective parameters by combining config and overrides
     const effectiveParams = ModelParameterManagerService.getEffectiveParameters(
       {
@@ -173,17 +173,22 @@ export abstract class BaseAIUseCase<
       },
       overrides
     );
-    
+
     // Validate parameters
     const validatedParams = ModelParameterManagerService.validateParameters(effectiveParams);
     const definedParams = ModelParameterManagerService.getDefinedParameters(validatedParams);
+
+    // Request-level parameters override config/usecase defaults (since 2.17.0)
+    // Priority: request > usecase override > model config
+    const effectiveTemperature = request.temperature ?? validatedParams.temperature;
+    const effectiveReasoningEffort = request.reasoningEffort;
 
     // Log the start of execution with metrics
     UseCaseMetricsLoggerService.logStart(
       this.constructor.name,
       this.modelConfig.name,
       formattedUserMessage.length,
-      validatedParams.temperature,
+      effectiveTemperature,
       definedParams
     );
 
@@ -197,7 +202,7 @@ export abstract class BaseAIUseCase<
         effectiveSystemMessage,
         {
           model: this.modelConfig.name,
-          temperature: validatedParams.temperature,
+          temperature: effectiveTemperature,
           authToken: this.modelConfig.bearerToken,
           baseUrl: this.modelConfig.baseUrl,
           provider: provider,
@@ -208,6 +213,8 @@ export abstract class BaseAIUseCase<
           ...ModelParameterManagerService.toOllamaOptions(validatedParams),
           // Vertex AI region (passed through to VertexAIProvider)
           ...(this.modelConfig.region && { region: this.modelConfig.region }),
+          // Reasoning effort for models that support thinking (Gemini 2.5+, Claude, etc.)
+          ...(effectiveReasoningEffort && { reasoningEffort: effectiveReasoningEffort }),
           debugContext: this.constructor.name
         }
       );

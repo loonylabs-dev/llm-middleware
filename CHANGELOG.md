@@ -1,3 +1,74 @@
+## [2.17.0] - 2026-01-17
+
+### ✨ New Feature: Request-Level Temperature and Reasoning Effort
+
+**Added support for per-request `temperature` and `reasoningEffort` in `BaseAIRequest`, enabling dynamic control from the application layer.**
+
+Previously, `temperature` was only configurable via model config or UseCase overrides. Now applications can pass these parameters directly in each request, making it easy to let users control AI creativity and reasoning depth through UI.
+
+#### Why This Matters
+
+- **User-Controlled Parameters**: Let users adjust temperature and reasoning via UI sliders
+- **Per-Request Flexibility**: Different requests can use different settings without changing config
+- **Clean API**: Parameters flow naturally from request → UseCase → LLM service
+- **Better Logging**: Temperature and reasoning effort are now prominently logged
+
+#### Changes
+
+**`BaseAIRequest`** (new optional fields):
+```typescript
+interface BaseAIRequest<TPrompt = string> {
+  prompt: TPrompt;
+  authToken?: string;
+  temperature?: number;        // NEW: Overrides model config (0.0-2.0)
+  reasoningEffort?: ReasoningEffort;  // NEW: 'none' | 'low' | 'medium' | 'high'
+}
+```
+
+**`BaseAIUseCase.execute()`**: Now respects request-level parameters with priority:
+- `request.temperature` > `getParameterOverrides()` > `modelConfig.temperature`
+- `request.reasoningEffort` is passed directly to providers
+
+**`LLMDebugInfo`** (new fields for logging):
+```typescript
+interface LLMDebugInfo {
+  // ... existing fields
+  temperature?: number;           // NEW: Logged in console and markdown
+  reasoningEffort?: ReasoningEffort;  // NEW: Logged in console and markdown
+}
+```
+
+#### Usage Example
+
+```typescript
+// Application code - user-selected parameters
+const result = await useCase.execute({
+  prompt: userInput,
+  temperature: userSelectedTemperature,  // e.g., from UI slider
+  reasoningEffort: userSelectedEffort,   // e.g., 'high' for complex tasks
+});
+```
+
+#### Console Output (new)
+
+```
+🚀 LLM REQUEST [VERTEX_AI]
+================================================================================
+⏰ Timestamp: 2026-01-17T10:30:00.000Z
+🤖 Model: gemini-2.5-flash
+🌐 Base URL: https://...
+📁 Use Case: GenerateContentUseCase
+🌡️  Temperature: 0.8
+🧠 Reasoning Effort: high
+```
+
+#### Backward Compatible
+
+- Both fields are optional - existing code works without changes
+- If not provided, temperature falls back to config, reasoning effort is undefined
+
+---
+
 ## [2.16.0] - 2026-01-16
 
 ### ✨ New Feature: Per-Model Region Configuration for Vertex AI

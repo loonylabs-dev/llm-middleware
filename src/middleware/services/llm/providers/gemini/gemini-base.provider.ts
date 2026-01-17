@@ -284,6 +284,8 @@ export abstract class GeminiBaseProvider extends BaseLLMProvider {
       chapterNumber,
       pageNumber,
       pageName,
+      temperature,
+      reasoningEffort,
     } = options;
 
     // Validate model
@@ -325,7 +327,10 @@ export abstract class GeminiBaseProvider extends BaseLLMProvider {
       sessionId,
       chapterNumber,
       pageNumber,
-      pageName
+      pageName,
+      // Request parameters for logging (since 2.17.0)
+      temperature: generationConfig.temperature,
+      reasoningEffort,
     };
 
     // Log request
