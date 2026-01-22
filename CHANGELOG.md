@@ -1,3 +1,65 @@
+## [2.17.1] - 2026-01-22
+
+### 🐛 Bug Fix: Filter Gemini Thinking Parts from Content
+
+**Fixed:** When using `reasoningEffort` with Gemini models (via Vertex AI or Google Direct API), thinking/reasoning text was incorrectly prepended to the response content, causing JSON parsers to fail.
+
+#### The Problem
+
+With `includeThoughts: true` (set automatically when `reasoningEffort` is not `none`), Gemini returns two types of parts in the response:
+- Parts with `thought: true` → Internal reasoning (should NOT be in content)
+- Parts without `thought` → Actual response (the content users expect)
+
+The middleware was joining ALL parts into the content string, resulting in:
+```
+**Considering Chapter Structure**
+
+I'm currently structuring the initial chapter...
+
+{
+  "content": "Der Flüsterwald machte seinem Namen alle Ehre..."
+}
+```
+
+This broke JSON parsing in consuming applications like Scribomate.
+
+#### The Fix
+
+- Thinking parts (`thought: true`) are now filtered from content
+- Thinking text is exposed separately via `response.message.thinking`
+- Token counting (`reasoningTokens`) continues to work correctly
+
+#### Changes
+
+**Types:**
+- `GeminiPart` now includes `thought?: boolean` and `thoughtSignature?: string`
+- `CommonLLMResponse.message` now includes `thinking?: string`
+
+**Behavior:**
+```typescript
+const response = await llmService.callWithSystemMessage(...);
+
+// Before: content contained thinking + actual response
+// After:  content contains only actual response
+console.log(response.message.content);   // Clean JSON or text
+
+// NEW: Access thinking separately if needed
+console.log(response.message.thinking);  // Reasoning text (optional)
+```
+
+#### Backward Compatible
+
+- Callers not using `thinking` field see no change (except cleaner content)
+- `reasoningTokens` in `usage` still tracked correctly
+- Only affects Gemini with `reasoningEffort` other than `none`
+
+#### Tests Added
+
+- Unit tests: `gemini-parse-response.test.ts` (10 tests)
+- Integration tests: `gemini-thinking-parts.integration.test.ts` (UseCase pattern)
+
+---
+
 ## [2.17.0] - 2026-01-17
 
 ### ✨ New Feature: Request-Level Temperature and Reasoning Effort

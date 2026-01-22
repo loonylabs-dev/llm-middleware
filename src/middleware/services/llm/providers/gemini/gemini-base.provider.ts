@@ -236,9 +236,22 @@ export abstract class GeminiBaseProvider extends BaseLLMProvider {
 
     // Get the first candidate's content
     const candidate = apiResponse.candidates[0];
-    const responseText = candidate.content.parts
+
+    // Separate thinking parts from content parts
+    // When includeThoughts: true is set, Gemini returns:
+    // - Parts with thought: true → thinking/reasoning content
+    // - Parts without thought: true → actual response content
+    const thinkingParts = candidate.content.parts.filter(part => part.thought === true);
+    const contentParts = candidate.content.parts.filter(part => part.thought !== true);
+
+    const responseText = contentParts
       .map(part => part.text)
       .join('\n');
+
+    // Extract thinking text separately (undefined if no thinking parts)
+    const thinkingText = thinkingParts.length > 0
+      ? thinkingParts.map(part => part.text).join('\n')
+      : undefined;
 
     // Normalize token usage to provider-agnostic format
     const tokenUsage: TokenUsage | undefined = apiResponse.usageMetadata
@@ -255,7 +268,9 @@ export abstract class GeminiBaseProvider extends BaseLLMProvider {
 
     return {
       message: {
-        content: responseText
+        content: responseText,
+        // Only include thinking if present (when includeThoughts: true was set)
+        ...(thinkingText !== undefined && { thinking: thinkingText })
       },
       sessionId,
       metadata: {

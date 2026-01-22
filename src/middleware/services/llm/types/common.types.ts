@@ -95,6 +95,8 @@ export interface TokenUsage {
 export interface CommonLLMResponse {
   message: {
     content: string;
+    /** Optional thinking/reasoning text from models that support it (e.g., Gemini with includeThoughts: true) */
+    thinking?: string;
   };
   sessionId?: string;
   metadata?: {

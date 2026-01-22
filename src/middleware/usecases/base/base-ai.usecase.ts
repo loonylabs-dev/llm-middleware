@@ -227,6 +227,10 @@ export abstract class BaseAIUseCase<
       const { cleanedJson: processedContent, thinking: extractedThinking } =
         await this.processResponse(result.message.content);
 
+      // TODO: Refactor needed - see docs/plan-thinking-extraction-refactoring.md
+      // Currently thinking comes from ResponseProcessor (<think> tags).
+      // Provider-level thinking (result.message.thinking) is not yet integrated.
+      // This will be fixed in the ThinkingExtractor refactoring.
       thinking = extractedThinking;
       success = true;
 
