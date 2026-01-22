@@ -6,6 +6,7 @@ import { LLMProvider, CommonLLMResponse, TokenUsage } from '../types';
 import { OllamaRequestOptions, OllamaResponse } from '../types/ollama.types';
 import { LLMDebugger, LLMDebugInfo } from '../utils/debug-llm.utils';
 import { DataFlowLoggerService } from '../../data-flow-logger';
+import { ThinkingExtractorFactory } from '../thinking';
 
 /**
  * Ollama provider implementation with advanced features:
@@ -212,10 +213,16 @@ export class OllamaProvider extends BaseLLMProvider {
         debugInfo.response = aiResponse.message.content;
         debugInfo.rawResponseData = aiResponse;
 
-        // Try to extract thinking content
-        const thinkMatch = aiResponse.message.content.match(/<think>([\s\S]*?)<\/think>/);
-        if (thinkMatch && thinkMatch[1]) {
-          debugInfo.thinking = thinkMatch[1].trim();
+        // Extract thinking using model-specific extractor (Strategy Pattern)
+        // DeepSeek R1 and similar models use <think> tags in their responses
+        const extractor = ThinkingExtractorFactory.forModel(model);
+        const { content: cleanContent, thinking } = extractor.extract(aiResponse.message.content);
+
+        // Update message with separated content and thinking
+        aiResponse.message.content = cleanContent;
+        if (thinking) {
+          aiResponse.message.thinking = thinking;
+          debugInfo.thinking = thinking;
         }
 
         // Log response (including markdown saving)
@@ -298,13 +305,20 @@ export class OllamaProvider extends BaseLLMProvider {
                 // Add session ID for internal tracking anyway
                 aiResponse.sessionId = sessionId;
 
-                debugInfo.responseTimestamp = new Date();
-                debugInfo.response = aiResponse.message.content;
-                debugInfo.rawResponseData = aiResponse;
+                // Extract thinking using model-specific extractor
+                const retryExtractor = ThinkingExtractorFactory.forModel(model);
+                const { content: retryCleanContent, thinking: retryThinking } = retryExtractor.extract(aiResponse.message.content);
 
-                const thinkMatch = aiResponse.message.content.match(/<think>([\s\S]*?)<\/think>/);
-                if (thinkMatch && thinkMatch[1]) {
-                  debugInfo.thinking = thinkMatch[1].trim();
+                aiResponse.message.content = retryCleanContent;
+                if (retryThinking) {
+                  aiResponse.message.thinking = retryThinking;
+                }
+
+                debugInfo.responseTimestamp = new Date();
+                debugInfo.response = retryCleanContent;
+                debugInfo.rawResponseData = aiResponse;
+                if (retryThinking) {
+                  debugInfo.thinking = retryThinking;
                 }
 
                 await LLMDebugger.logResponse(debugInfo);
@@ -313,7 +327,7 @@ export class OllamaProvider extends BaseLLMProvider {
                 this.dataFlowLogger.logLLMResponse(
                   debugContext || 'ollama-direct',
                   {
-                    rawResponse: aiResponse.message.content,
+                    rawResponse: retryCleanContent,
                     processingTime: Date.now() - requestStartTime
                   },
                   contextForLogger,
@@ -356,7 +370,7 @@ export class OllamaProvider extends BaseLLMProvider {
                   timeout: 180000
                 });
                 if (retryRaw && retryRaw.status === 200) {
-                  return this.handleSuccessfulResponse(retryRaw.data, debugInfo, sessionId, requestStartTime, debugContext, contextForLogger, requestId);
+                  return this.handleSuccessfulResponse(retryRaw.data, debugInfo, sessionId, requestStartTime, debugContext, contextForLogger, requestId, model);
                 }
               } catch (retryRawErr) {
                 logger.warn('Retry with raw Authorization header failed', {
@@ -378,7 +392,7 @@ export class OllamaProvider extends BaseLLMProvider {
                   timeout: 180000
                 });
                 if (retryApiKey && retryApiKey.status === 200) {
-                  return this.handleSuccessfulResponse(retryApiKey.data, debugInfo, sessionId, requestStartTime, debugContext, contextForLogger, requestId);
+                  return this.handleSuccessfulResponse(retryApiKey.data, debugInfo, sessionId, requestStartTime, debugContext, contextForLogger, requestId, model);
                 }
               } catch (retryKeyErr) {
                 logger.warn('Retry with X-API-Key header failed', {
@@ -396,7 +410,7 @@ export class OllamaProvider extends BaseLLMProvider {
                 timeout: 180000
               });
               if (retryAuthless && retryAuthless.status === 200) {
-                return this.handleSuccessfulResponse(retryAuthless.data, debugInfo, sessionId, requestStartTime, debugContext, contextForLogger, requestId);
+                return this.handleSuccessfulResponse(retryAuthless.data, debugInfo, sessionId, requestStartTime, debugContext, contextForLogger, requestId, model);
               }
             } catch (retryAuthlessError) {
               logger.error('Authless retry failed', {
@@ -472,16 +486,25 @@ export class OllamaProvider extends BaseLLMProvider {
     requestStartTime: number,
     debugContext: string | undefined,
     contextForLogger: any,
-    requestId: string
+    requestId: string,
+    model: string
   ): Promise<OllamaResponse> {
     aiResponse.sessionId = sessionId;
-    debugInfo.responseTimestamp = new Date();
-    debugInfo.response = aiResponse.message.content;
-    debugInfo.rawResponseData = aiResponse;
 
-    const thinkMatch = aiResponse.message.content.match(/<think>([\s\S]*?)<\/think>/);
-    if (thinkMatch && thinkMatch[1]) {
-      debugInfo.thinking = thinkMatch[1].trim();
+    // Extract thinking using model-specific extractor
+    const extractor = ThinkingExtractorFactory.forModel(model);
+    const { content: cleanContent, thinking } = extractor.extract(aiResponse.message.content);
+
+    aiResponse.message.content = cleanContent;
+    if (thinking) {
+      aiResponse.message.thinking = thinking;
+    }
+
+    debugInfo.responseTimestamp = new Date();
+    debugInfo.response = cleanContent;
+    debugInfo.rawResponseData = aiResponse;
+    if (thinking) {
+      debugInfo.thinking = thinking;
     }
 
     await LLMDebugger.logResponse(debugInfo);
@@ -489,7 +512,7 @@ export class OllamaProvider extends BaseLLMProvider {
     this.dataFlowLogger.logLLMResponse(
       debugContext || 'ollama-direct',
       {
-        rawResponse: aiResponse.message.content,
+        rawResponse: cleanContent,
         processingTime: Date.now() - requestStartTime
       },
       contextForLogger,

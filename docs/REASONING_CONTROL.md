@@ -157,6 +157,75 @@ console.log(response.usage);
 
 This is essential for cost tracking, as reasoning tokens can be 10-50x the output tokens!
 
+## Accessing Thinking Text (v2.17.1+)
+
+When `includeThoughts: true` is used (automatically enabled for `reasoningEffort` other than `none`), the model's internal reasoning is available separately:
+
+```typescript
+const response = await llmService.callWithSystemMessage(
+  'Solve: What is 15 + 27?',
+  'You are a helpful assistant.',
+  {
+    provider: LLMProvider.VERTEX_AI,
+    model: 'gemini-3-flash-preview',
+    reasoningEffort: 'medium',
+  }
+);
+
+// Clean content without thinking preamble
+console.log(response.message.content);  // "42" or clean JSON
+
+// Access thinking text separately (optional)
+if (response.message.thinking) {
+  console.log('Model reasoning:', response.message.thinking);
+  // "Let me calculate step by step... 15 + 27 = 42"
+}
+```
+
+**Important:** Prior to v2.17.1, thinking text was incorrectly prepended to `content`, causing JSON parse failures. This is now fixed - `content` is always clean.
+
+### ThinkingExtractor Architecture (v2.18.0+)
+
+Since v2.18.0, thinking extraction is handled consistently at the provider level using the **Strategy Pattern**:
+
+```
+Provider → ThinkingExtractor → { content, thinking }
+```
+
+**How it works:**
+- **Gemini**: Native extraction via `thought:true` parts (handled in `parseResponse()`)
+- **Ollama (DeepSeek, QwQ)**: `ThinkTagExtractor` extracts `<think>`, `<thinking>`, `<reasoning>` tags
+- **Anthropic**: Extended Thinking API (native) + fallback ThinkTagExtractor
+- **Standard models**: `NoOpThinkingExtractor` (pass-through)
+
+**Model detection:**
+```typescript
+import { ThinkingExtractorFactory } from '@loonylabs/llm-middleware';
+
+// Check if a model uses thinking tags
+ThinkingExtractorFactory.usesThinkingTags('deepseek-r1:14b');  // true
+ThinkingExtractorFactory.usesThinkingTags('llama3:8b');        // false
+ThinkingExtractorFactory.usesThinkingTags('gemini-3-flash');   // false (native handling)
+```
+
+This ensures `response.message.thinking` is reliably populated for all providers and model types.
+
+### Why This Matters
+
+For use cases expecting JSON output (like Scribomate's story generation), the thinking text was corrupting the response:
+
+```
+// Before v2.17.1 (broken):
+response.message.content = `**Considering Structure**
+I'm planning the chapter...
+{"content": "The forest..."}`  // JSON parser fails!
+
+// After v2.17.1 (fixed):
+response.message.content = `{"content": "The forest..."}`  // Clean JSON
+response.message.thinking = `**Considering Structure**
+I'm planning the chapter...`  // Separate field
+```
+
 ## Testing
 
 ### Vertex AI Smoke Test

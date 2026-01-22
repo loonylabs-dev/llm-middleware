@@ -95,6 +95,8 @@ export interface TokenUsage {
 export interface CommonLLMResponse {
   message: {
     content: string;
+    /** Optional thinking/reasoning text from models that support it (e.g., Gemini with includeThoughts: true) */
+    thinking?: string;
   };
   sessionId?: string;
   metadata?: {
@@ -155,4 +157,8 @@ export interface LLMDebugInfo {
   chapterNumber?: number;
   pageNumber?: number;
   pageName?: string;
+
+  // Request parameters for logging (since 2.17.0)
+  temperature?: number;
+  reasoningEffort?: ReasoningEffort;
 }

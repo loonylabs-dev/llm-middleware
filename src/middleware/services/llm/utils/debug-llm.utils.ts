@@ -73,6 +73,13 @@ export class LLMDebugger {
     console.log(`🤖 Model: ${debugInfo.model}`);
     console.log(`🌐 Base URL: ${debugInfo.baseUrl}`);
     console.log(`📁 Use Case: ${debugInfo.useCase || 'Unknown'}`);
+    // Log request parameters (since 2.17.0)
+    if (debugInfo.temperature !== undefined) {
+      console.log(`🌡️  Temperature: ${debugInfo.temperature}`);
+    }
+    if (debugInfo.reasoningEffort) {
+      console.log(`🧠 Reasoning Effort: ${debugInfo.reasoningEffort}`);
+    }
 
     // Show chapter/page context prominently
     if (debugInfo.chapterNumber || debugInfo.pageNumber || debugInfo.pageName) {
@@ -226,6 +233,8 @@ export class LLMDebugger {
 - **Provider**: ${debugInfo.provider}
 - **Model**: ${debugInfo.model}
 - **Base URL**: ${debugInfo.baseUrl}
+${debugInfo.temperature !== undefined ? `- **Temperature**: ${debugInfo.temperature}` : ''}
+${debugInfo.reasoningEffort ? `- **Reasoning Effort**: ${debugInfo.reasoningEffort}` : ''}
 
 ## Request Information
 - **Request Timestamp**: ${debugInfo.timestamp.toISOString()}

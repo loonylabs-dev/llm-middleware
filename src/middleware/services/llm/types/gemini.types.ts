@@ -68,9 +68,16 @@ export interface GeminiRequestOptions extends CommonLLMOptions {
 
 /**
  * Gemini content part (text or other types)
+ * When includeThoughts: true is set in thinkingConfig, parts may include:
+ * - thought: true - Marks this part as thinking/reasoning content (should be filtered from main content)
+ * - thoughtSignature - Present on the actual content part (non-thinking)
  */
 export interface GeminiPart {
   text: string;
+  /** If true, this part contains thinking/reasoning content (not the actual response) */
+  thought?: boolean;
+  /** Signature present on content parts when thinking is enabled (indicates non-thinking content) */
+  thoughtSignature?: string;
 }
 
 /**

@@ -1,3 +1,224 @@
+## [2.18.0] - 2026-01-22
+
+### ✨ Architectural Refactoring: ThinkingExtractor Strategy Pattern
+
+**Unified thinking/reasoning extraction across all providers using Strategy Pattern.**
+
+Previously, thinking extraction was split between provider-level handling (Gemini, Anthropic) and UseCase-level ResponseProcessor (`<think>` tag extraction). This led to inconsistent behavior where provider-level thinking was ignored in BaseAIUseCase.
+
+#### The Solution: ThinkingExtractor Framework
+
+A new Strategy Pattern implementation that enables each provider to handle thinking extraction according to its model's conventions:
+
+```
+src/middleware/services/llm/thinking/
+├── thinking-extractor.interface.ts  # ThinkingExtractor interface
+├── thinking-extractor.factory.ts    # Factory with model heuristics
+├── extractors/
+│   ├── noop.extractor.ts           # Pass-through for native providers
+│   └── think-tag.extractor.ts      # <think>, <thinking>, <reasoning> tags
+└── index.ts
+```
+
+#### Key Changes
+
+**New Framework:**
+- `ThinkingExtractor` interface with `extract(content) → { content, thinking }` method
+- `ThinkingExtractorFactory` with model-based heuristics (DeepSeek, QwQ → ThinkTagExtractor)
+- `NoOpThinkingExtractor` for models/providers with native thinking support
+- `ThinkTagExtractor` supporting `<think>`, `<thinking>`, `<reasoning>` tags
+
+**Provider Integration:**
+- **OllamaProvider**: Now uses `ThinkingExtractorFactory.forModel()` to extract thinking
+- **AnthropicProvider**: Now uses ThinkingExtractor (fallback for non-native cases)
+- **GeminiProvider**: Already handles thinking natively via `thought:true` parts (unchanged)
+
+**BaseAIUseCase Cleanup:**
+- Now prioritizes `result.message.thinking` (from provider)
+- ResponseProcessor extraction is kept as fallback
+- Removed TODO comment about unintegrated provider thinking
+
+#### Usage
+
+```typescript
+// All providers now populate message.thinking consistently:
+const response = await useCase.execute({ prompt: 'Explain quantum physics' });
+
+// Works for all providers:
+console.log(response.thinking);  // Extracted thinking (if any)
+console.log(response.content);   // Clean content without thinking tags
+```
+
+**Model Detection:**
+```typescript
+import { ThinkingExtractorFactory } from '@loonylabs/llm-middleware';
+
+// Check if a model uses thinking tags
+const usesThinkTags = ThinkingExtractorFactory.usesThinkingTags('deepseek-r1:14b');
+// → true (DeepSeek R1 uses <think> tags)
+
+const usesThinkTags2 = ThinkingExtractorFactory.usesThinkingTags('llama3:8b');
+// → false (standard Llama doesn't use thinking tags)
+```
+
+#### ⚠️ Behavior Change (Ollama with DeepSeek/QwQ)
+
+For Ollama users with models that use `<think>` tags (DeepSeek R1, QwQ):
+
+| Before 2.18.0 | After 2.18.0 |
+|---------------|--------------|
+| `<think>` tags remained in `message.content` | Tags are extracted to `message.thinking` |
+| Content included raw thinking text | Content is clean (JSON-safe) |
+
+**Migration:** If your code relied on `<think>` tags being in content, access them via `response.message.thinking` instead.
+
+#### Backward Compatible (other providers)
+
+- Gemini, Anthropic, OpenAI: No changes (already handled natively)
+- `message.thinking` is now reliably populated for all providers
+- ResponseProcessor thinking extraction remains as fallback
+
+#### Tests Added
+
+- `think-tag.extractor.test.ts` - ThinkTagExtractor unit tests
+- `noop.extractor.test.ts` - NoOpThinkingExtractor unit tests
+- `thinking-extractor.factory.test.ts` - Factory and model heuristics tests
+
+---
+
+## [2.17.1] - 2026-01-22
+
+### 🐛 Bug Fix: Filter Gemini Thinking Parts from Content
+
+**Fixed:** When using `reasoningEffort` with Gemini models (via Vertex AI or Google Direct API), thinking/reasoning text was incorrectly prepended to the response content, causing JSON parsers to fail.
+
+#### The Problem
+
+With `includeThoughts: true` (set automatically when `reasoningEffort` is not `none`), Gemini returns two types of parts in the response:
+- Parts with `thought: true` → Internal reasoning (should NOT be in content)
+- Parts without `thought` → Actual response (the content users expect)
+
+The middleware was joining ALL parts into the content string, resulting in:
+```
+**Considering Chapter Structure**
+
+I'm currently structuring the initial chapter...
+
+{
+  "content": "Der Flüsterwald machte seinem Namen alle Ehre..."
+}
+```
+
+This broke JSON parsing in consuming applications like Scribomate.
+
+#### The Fix
+
+- Thinking parts (`thought: true`) are now filtered from content
+- Thinking text is exposed separately via `response.message.thinking`
+- Token counting (`reasoningTokens`) continues to work correctly
+
+#### Changes
+
+**Types:**
+- `GeminiPart` now includes `thought?: boolean` and `thoughtSignature?: string`
+- `CommonLLMResponse.message` now includes `thinking?: string`
+
+**Behavior:**
+```typescript
+const response = await llmService.callWithSystemMessage(...);
+
+// Before: content contained thinking + actual response
+// After:  content contains only actual response
+console.log(response.message.content);   // Clean JSON or text
+
+// NEW: Access thinking separately if needed
+console.log(response.message.thinking);  // Reasoning text (optional)
+```
+
+#### Backward Compatible
+
+- Callers not using `thinking` field see no change (except cleaner content)
+- `reasoningTokens` in `usage` still tracked correctly
+- Only affects Gemini with `reasoningEffort` other than `none`
+
+#### Tests Added
+
+- Unit tests: `gemini-parse-response.test.ts` (10 tests)
+- Integration tests: `gemini-thinking-parts.integration.test.ts` (UseCase pattern)
+
+---
+
+## [2.17.0] - 2026-01-17
+
+### ✨ New Feature: Request-Level Temperature and Reasoning Effort
+
+**Added support for per-request `temperature` and `reasoningEffort` in `BaseAIRequest`, enabling dynamic control from the application layer.**
+
+Previously, `temperature` was only configurable via model config or UseCase overrides. Now applications can pass these parameters directly in each request, making it easy to let users control AI creativity and reasoning depth through UI.
+
+#### Why This Matters
+
+- **User-Controlled Parameters**: Let users adjust temperature and reasoning via UI sliders
+- **Per-Request Flexibility**: Different requests can use different settings without changing config
+- **Clean API**: Parameters flow naturally from request → UseCase → LLM service
+- **Better Logging**: Temperature and reasoning effort are now prominently logged
+
+#### Changes
+
+**`BaseAIRequest`** (new optional fields):
+```typescript
+interface BaseAIRequest<TPrompt = string> {
+  prompt: TPrompt;
+  authToken?: string;
+  temperature?: number;        // NEW: Overrides model config (0.0-2.0)
+  reasoningEffort?: ReasoningEffort;  // NEW: 'none' | 'low' | 'medium' | 'high'
+}
+```
+
+**`BaseAIUseCase.execute()`**: Now respects request-level parameters with priority:
+- `request.temperature` > `getParameterOverrides()` > `modelConfig.temperature`
+- `request.reasoningEffort` is passed directly to providers
+
+**`LLMDebugInfo`** (new fields for logging):
+```typescript
+interface LLMDebugInfo {
+  // ... existing fields
+  temperature?: number;           // NEW: Logged in console and markdown
+  reasoningEffort?: ReasoningEffort;  // NEW: Logged in console and markdown
+}
+```
+
+#### Usage Example
+
+```typescript
+// Application code - user-selected parameters
+const result = await useCase.execute({
+  prompt: userInput,
+  temperature: userSelectedTemperature,  // e.g., from UI slider
+  reasoningEffort: userSelectedEffort,   // e.g., 'high' for complex tasks
+});
+```
+
+#### Console Output (new)
+
+```
+🚀 LLM REQUEST [VERTEX_AI]
+================================================================================
+⏰ Timestamp: 2026-01-17T10:30:00.000Z
+🤖 Model: gemini-2.5-flash
+🌐 Base URL: https://...
+📁 Use Case: GenerateContentUseCase
+🌡️  Temperature: 0.8
+🧠 Reasoning Effort: high
+```
+
+#### Backward Compatible
+
+- Both fields are optional - existing code works without changes
+- If not provided, temperature falls back to config, reasoning effort is undefined
+
+---
+
 ## [2.16.0] - 2026-01-16
 
 ### ✨ New Feature: Per-Model Region Configuration for Vertex AI
@@ -301,7 +522,7 @@ npm run test:integration:reasoning  # Full integration tests
 
 #### Documentation
 
-See [docs/reasoning-control.md](docs/reasoning-control.md) for detailed documentation.
+See [docs/REASONING_CONTROL.md](docs/REASONING_CONTROL.md) for detailed documentation.
 
 ---
 
