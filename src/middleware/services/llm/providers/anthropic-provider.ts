@@ -12,6 +12,7 @@ import {
 } from '../types/anthropic.types';
 import { LLMDebugger, LLMDebugInfo } from '../utils/debug-llm.utils';
 import { DataFlowLoggerService } from '../../data-flow-logger';
+import { ThinkingExtractorFactory } from '../thinking';
 
 /**
  * Maps provider-agnostic ReasoningEffort to Anthropic budget_tokens.
@@ -214,9 +215,15 @@ export class AnthropicProvider extends BaseLLMProvider {
         const apiResponse: AnthropicAPIResponse = response.data;
 
         // Extract text from content blocks
-        const responseText = apiResponse.content
+        const rawResponseText = apiResponse.content
           .map(block => block.text)
           .join('\n');
+
+        // Extract thinking using model-specific extractor (Strategy Pattern)
+        // Most Anthropic models don't use <think> tags, but this provides
+        // consistency and supports potential use via Anthropic-compatible proxies
+        const extractor = ThinkingExtractorFactory.forModel(model);
+        const { content: responseText, thinking } = extractor.extract(rawResponseText);
 
         // Normalize token usage to provider-agnostic format
         const tokenUsage: TokenUsage = {
@@ -235,7 +242,8 @@ export class AnthropicProvider extends BaseLLMProvider {
         // Normalize to CommonLLMResponse format
         const normalizedResponse: AnthropicResponse = {
           message: {
-            content: responseText
+            content: responseText,
+            ...(thinking && { thinking })
           },
           sessionId: sessionId,
           metadata: {
@@ -257,11 +265,8 @@ export class AnthropicProvider extends BaseLLMProvider {
         debugInfo.responseTimestamp = new Date();
         debugInfo.response = responseText;
         debugInfo.rawResponseData = apiResponse;
-
-        // Try to extract thinking content (if model uses <think> tags)
-        const thinkMatch = responseText.match(/<think>([\s\S]*?)<\/think>/);
-        if (thinkMatch && thinkMatch[1]) {
-          debugInfo.thinking = thinkMatch[1].trim();
+        if (thinking) {
+          debugInfo.thinking = thinking;
         }
 
         // Log response (including markdown saving)

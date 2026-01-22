@@ -228,6 +228,20 @@ describeLive('Gemini Thinking Parts Integration Tests (UseCase Pattern)', () => 
       expect(content).not.toMatch(/^I'll/i);
       expect(content).not.toMatch(/^First,/i);
 
+      // CRITICAL: Verify thinking is accessible separately in UseCase result
+      // This was the original bug - thinking was NOT reaching consumers
+      const reasoningTokens = (result.usage as any)?.reasoningTokens;
+      if (reasoningTokens && reasoningTokens > 0) {
+        // If reasoning tokens were used, thinking MUST be available
+        expect(result.thinking).toBeDefined();
+        expect(typeof result.thinking).toBe('string');
+        expect(result.thinking!.length).toBeGreaterThan(0);
+        console.log(`✅ Thinking is accessible in UseCase result (${result.thinking!.length} chars)`);
+        console.log(`   First 100 chars: "${result.thinking!.substring(0, 100)}..."`);
+      } else {
+        console.log(`ℹ️ No reasoning tokens used, thinking may be undefined`);
+      }
+
       console.log('✅ JSON parsed successfully without thinking contamination');
       console.log('\n<<< Test completed');
     }, LLM_TIMEOUT);

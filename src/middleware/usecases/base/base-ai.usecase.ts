@@ -224,14 +224,14 @@ export abstract class BaseAIUseCase<
       }
 
       // Process the response using processResponse() method (uses getResponseProcessingOptions())
-      const { cleanedJson: processedContent, thinking: extractedThinking } =
+      // Note: Since 2.18.0, providers extract thinking via ThinkingExtractor strategy pattern.
+      // ResponseProcessor extraction is kept as fallback for edge cases.
+      const { cleanedJson: processedContent, thinking: responseProcessorThinking } =
         await this.processResponse(result.message.content);
 
-      // TODO: Refactor needed - see docs/plan-thinking-extraction-refactoring.md
-      // Currently thinking comes from ResponseProcessor (<think> tags).
-      // Provider-level thinking (result.message.thinking) is not yet integrated.
-      // This will be fixed in the ThinkingExtractor refactoring.
-      thinking = extractedThinking;
+      // Provider-level thinking takes priority over ResponseProcessor extraction
+      // (since 2.18.0: providers handle thinking extraction via ThinkingExtractor)
+      thinking = result.message.thinking || responseProcessorThinking;
       success = true;
 
       // Extract actual token counts from provider response if available
@@ -266,7 +266,7 @@ export abstract class BaseAIUseCase<
       const businessResult = this.createResult(
         processedContent,
         formattedUserMessage,
-        extractedThinking
+        thinking
       );
 
       // Attach usage metadata to result (library responsibility since 2.13.0)

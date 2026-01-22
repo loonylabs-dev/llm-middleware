@@ -1,3 +1,91 @@
+## [2.18.0] - 2026-01-22
+
+### ✨ Architectural Refactoring: ThinkingExtractor Strategy Pattern
+
+**Unified thinking/reasoning extraction across all providers using Strategy Pattern.**
+
+Previously, thinking extraction was split between provider-level handling (Gemini, Anthropic) and UseCase-level ResponseProcessor (`<think>` tag extraction). This led to inconsistent behavior where provider-level thinking was ignored in BaseAIUseCase.
+
+#### The Solution: ThinkingExtractor Framework
+
+A new Strategy Pattern implementation that enables each provider to handle thinking extraction according to its model's conventions:
+
+```
+src/middleware/services/llm/thinking/
+├── thinking-extractor.interface.ts  # ThinkingExtractor interface
+├── thinking-extractor.factory.ts    # Factory with model heuristics
+├── extractors/
+│   ├── noop.extractor.ts           # Pass-through for native providers
+│   └── think-tag.extractor.ts      # <think>, <thinking>, <reasoning> tags
+└── index.ts
+```
+
+#### Key Changes
+
+**New Framework:**
+- `ThinkingExtractor` interface with `extract(content) → { content, thinking }` method
+- `ThinkingExtractorFactory` with model-based heuristics (DeepSeek, QwQ → ThinkTagExtractor)
+- `NoOpThinkingExtractor` for models/providers with native thinking support
+- `ThinkTagExtractor` supporting `<think>`, `<thinking>`, `<reasoning>` tags
+
+**Provider Integration:**
+- **OllamaProvider**: Now uses `ThinkingExtractorFactory.forModel()` to extract thinking
+- **AnthropicProvider**: Now uses ThinkingExtractor (fallback for non-native cases)
+- **GeminiProvider**: Already handles thinking natively via `thought:true` parts (unchanged)
+
+**BaseAIUseCase Cleanup:**
+- Now prioritizes `result.message.thinking` (from provider)
+- ResponseProcessor extraction is kept as fallback
+- Removed TODO comment about unintegrated provider thinking
+
+#### Usage
+
+```typescript
+// All providers now populate message.thinking consistently:
+const response = await useCase.execute({ prompt: 'Explain quantum physics' });
+
+// Works for all providers:
+console.log(response.thinking);  // Extracted thinking (if any)
+console.log(response.content);   // Clean content without thinking tags
+```
+
+**Model Detection:**
+```typescript
+import { ThinkingExtractorFactory } from '@loonylabs/llm-middleware';
+
+// Check if a model uses thinking tags
+const usesThinkTags = ThinkingExtractorFactory.usesThinkingTags('deepseek-r1:14b');
+// → true (DeepSeek R1 uses <think> tags)
+
+const usesThinkTags2 = ThinkingExtractorFactory.usesThinkingTags('llama3:8b');
+// → false (standard Llama doesn't use thinking tags)
+```
+
+#### ⚠️ Behavior Change (Ollama with DeepSeek/QwQ)
+
+For Ollama users with models that use `<think>` tags (DeepSeek R1, QwQ):
+
+| Before 2.18.0 | After 2.18.0 |
+|---------------|--------------|
+| `<think>` tags remained in `message.content` | Tags are extracted to `message.thinking` |
+| Content included raw thinking text | Content is clean (JSON-safe) |
+
+**Migration:** If your code relied on `<think>` tags being in content, access them via `response.message.thinking` instead.
+
+#### Backward Compatible (other providers)
+
+- Gemini, Anthropic, OpenAI: No changes (already handled natively)
+- `message.thinking` is now reliably populated for all providers
+- ResponseProcessor thinking extraction remains as fallback
+
+#### Tests Added
+
+- `think-tag.extractor.test.ts` - ThinkTagExtractor unit tests
+- `noop.extractor.test.ts` - NoOpThinkingExtractor unit tests
+- `thinking-extractor.factory.test.ts` - Factory and model heuristics tests
+
+---
+
 ## [2.17.1] - 2026-01-22
 
 ### 🐛 Bug Fix: Filter Gemini Thinking Parts from Content
@@ -434,7 +522,7 @@ npm run test:integration:reasoning  # Full integration tests
 
 #### Documentation
 
-See [docs/reasoning-control.md](docs/reasoning-control.md) for detailed documentation.
+See [docs/REASONING_CONTROL.md](docs/REASONING_CONTROL.md) for detailed documentation.
 
 ---
 

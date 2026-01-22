@@ -391,7 +391,7 @@ src/
 - [Getting Started Guide](docs/GETTING_STARTED.md)
 - [Architecture Overview](docs/ARCHITECTURE.md)
 - [LLM Providers Guide](docs/LLM_PROVIDERS.md) - Multi-provider architecture and how to use different LLM services
-- [Reasoning Control Guide](docs/reasoning-control.md) - Control model thinking with `reasoningEffort` parameter
+- [Reasoning Control Guide](docs/REASONING_CONTROL.md) - Control model thinking with `reasoningEffort` parameter
 - [LLM Provider Parameters](docs/OLLAMA_PARAMETERS.md) - Ollama-specific parameter reference and presets
 - [Request Formatting Guide](docs/REQUEST_FORMATTING.md) - FlatFormatter vs RequestFormatterService
 - [Performance Monitoring](docs/PERFORMANCE_MONITORING.md) - Metrics and logging

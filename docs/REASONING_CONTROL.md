@@ -184,6 +184,32 @@ if (response.message.thinking) {
 
 **Important:** Prior to v2.17.1, thinking text was incorrectly prepended to `content`, causing JSON parse failures. This is now fixed - `content` is always clean.
 
+### ThinkingExtractor Architecture (v2.18.0+)
+
+Since v2.18.0, thinking extraction is handled consistently at the provider level using the **Strategy Pattern**:
+
+```
+Provider → ThinkingExtractor → { content, thinking }
+```
+
+**How it works:**
+- **Gemini**: Native extraction via `thought:true` parts (handled in `parseResponse()`)
+- **Ollama (DeepSeek, QwQ)**: `ThinkTagExtractor` extracts `<think>`, `<thinking>`, `<reasoning>` tags
+- **Anthropic**: Extended Thinking API (native) + fallback ThinkTagExtractor
+- **Standard models**: `NoOpThinkingExtractor` (pass-through)
+
+**Model detection:**
+```typescript
+import { ThinkingExtractorFactory } from '@loonylabs/llm-middleware';
+
+// Check if a model uses thinking tags
+ThinkingExtractorFactory.usesThinkingTags('deepseek-r1:14b');  // true
+ThinkingExtractorFactory.usesThinkingTags('llama3:8b');        // false
+ThinkingExtractorFactory.usesThinkingTags('gemini-3-flash');   // false (native handling)
+```
+
+This ensures `response.message.thinking` is reliably populated for all providers and model types.
+
 ### Why This Matters
 
 For use cases expecting JSON output (like Scribomate's story generation), the thinking text was corrupting the response:
