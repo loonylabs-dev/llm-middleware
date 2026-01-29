@@ -2,6 +2,8 @@
  * Common types shared across all LLM providers
  */
 
+import type { RetryConfig } from '../utils/retry.utils';
+
 /**
  * Reasoning effort levels for models with thinking/reasoning capabilities.
  * Maps to provider-specific parameters:
@@ -63,7 +65,16 @@ export interface CommonLLMOptions {
 
   /** Provider-specific options (escape hatch) */
   providerSpecific?: Record<string, any>;
+
+  /**
+   * Retry configuration for transient HTTP errors (429, 5xx, timeouts).
+   * Default: enabled with exponential backoff (1s initial, 2x multiplier, 30s max, 3 retries).
+   * Set `{ enabled: false }` to disable.
+   */
+  retry?: RetryConfig;
 }
+
+export type { RetryConfig };
 
 /**
  * Provider-agnostic token usage information

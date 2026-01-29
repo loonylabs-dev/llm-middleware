@@ -7,6 +7,7 @@ import { OllamaRequestOptions, OllamaResponse } from '../types/ollama.types';
 import { LLMDebugger, LLMDebugInfo } from '../utils/debug-llm.utils';
 import { DataFlowLoggerService } from '../../data-flow-logger';
 import { ThinkingExtractorFactory } from '../thinking';
+import { retryWithBackoff } from '../utils/retry.utils';
 
 /**
  * Ollama provider implementation with advanced features:
@@ -174,10 +175,14 @@ export class OllamaProvider extends BaseLLMProvider {
         }
       });
 
-      const response = await axios.post(`${baseUrl}/api/chat`, data, {
-        headers,
-        timeout: 180000 // 180 second timeout
-      });
+      const response = await retryWithBackoff(
+        () => axios.post(`${baseUrl}/api/chat`, data, {
+          headers,
+          timeout: 180000 // 180 second timeout
+        }),
+        this.constructor.name,
+        options.retry
+      );
       const requestDuration = Date.now() - requestStartTime;
 
       if (response && response.status === 200) {

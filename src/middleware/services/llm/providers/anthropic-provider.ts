@@ -13,6 +13,7 @@ import {
 import { LLMDebugger, LLMDebugInfo } from '../utils/debug-llm.utils';
 import { DataFlowLoggerService } from '../../data-flow-logger';
 import { ThinkingExtractorFactory } from '../thinking';
+import { retryWithBackoff } from '../utils/retry.utils';
 
 /**
  * Maps provider-agnostic ReasoningEffort to Anthropic budget_tokens.
@@ -200,13 +201,17 @@ export class AnthropicProvider extends BaseLLMProvider {
         }
       });
 
-      const response = await axios.post<AnthropicAPIResponse>(
-        `${this.BASE_URL}/messages`,
-        requestPayload,
-        {
-          headers,
-          timeout: 180000 // 180 second timeout
-        }
+      const response = await retryWithBackoff(
+        () => axios.post<AnthropicAPIResponse>(
+          `${this.BASE_URL}/messages`,
+          requestPayload,
+          {
+            headers,
+            timeout: 180000 // 180 second timeout
+          }
+        ),
+        this.constructor.name,
+        options.retry
       );
 
       const requestDuration = Date.now() - requestStartTime;

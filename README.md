@@ -46,6 +46,8 @@
   - ✅ **Google Vertex AI**: CDPA/GDPR-compliant with EU data residency (Service Account auth)
   - ✅ **Requesty.AI**: 300+ models via unified API, built-in cost tracking
   - 🔌 **Pluggable**: Easy to add custom providers - see [LLM Providers Guide](docs/LLM_PROVIDERS.md)
+- 🔄 **Automatic Retry**: Exponential backoff with jitter for transient errors (429, 5xx, timeouts)
+  - ✨ **v2.19.0**: Configurable per-request via `retry` option, enabled by default
 - 🧠 **Reasoning Control**: Control model thinking effort via `reasoningEffort` parameter
   - ✨ **v2.14.0**: Supports Gemini 2.5 (`thinkingBudget`) and Gemini 3 (`thinkingLevel`)
   - 📊 Track reasoning tokens separately for cost analysis

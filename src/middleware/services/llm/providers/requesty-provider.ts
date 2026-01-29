@@ -13,6 +13,7 @@ import {
 } from '../types/requesty.types';
 import { LLMDebugger, LLMDebugInfo } from '../utils/debug-llm.utils';
 import { DataFlowLoggerService } from '../../data-flow-logger';
+import { retryWithBackoff } from '../utils/retry.utils';
 
 /**
  * Check if the model is a Google/Gemini model.
@@ -189,13 +190,17 @@ export class RequestyProvider extends BaseLLMProvider {
         }
       });
 
-      const response = await axios.post<RequestyAPIResponse>(
-        `${this.BASE_URL}/chat/completions`,
-        requestPayload,
-        {
-          headers,
-          timeout: 180000 // 180 second timeout
-        }
+      const response = await retryWithBackoff(
+        () => axios.post<RequestyAPIResponse>(
+          `${this.BASE_URL}/chat/completions`,
+          requestPayload,
+          {
+            headers,
+            timeout: 180000 // 180 second timeout
+          }
+        ),
+        this.constructor.name,
+        options.retry
       );
 
       const requestDuration = Date.now() - requestStartTime;

@@ -17,6 +17,7 @@ import {
 } from '../../types/gemini.types';
 import { LLMDebugger, LLMDebugInfo } from '../../utils/debug-llm.utils';
 import { DataFlowLoggerService } from '../../../data-flow-logger';
+import { retryWithBackoff } from '../../utils/retry.utils';
 
 /**
  * Gemini model generation - determines which reasoning API to use.
@@ -401,17 +402,21 @@ export abstract class GeminiBaseProvider extends BaseLLMProvider {
         }
       });
 
-      const response = await axios.post<GeminiAPIResponse>(
-        endpoint,
-        requestPayload,
-        {
-          ...authConfig,
-          headers: {
-            'Content-Type': 'application/json',
-            ...authConfig.headers
-          },
-          timeout: 180000 // 180 second timeout
-        }
+      const response = await retryWithBackoff(
+        () => axios.post<GeminiAPIResponse>(
+          endpoint,
+          requestPayload,
+          {
+            ...authConfig,
+            headers: {
+              'Content-Type': 'application/json',
+              ...authConfig.headers
+            },
+            timeout: 180000 // 180 second timeout
+          }
+        ),
+        this.constructor.name,
+        options.retry
       );
 
       const requestDuration = Date.now() - requestStartTime;

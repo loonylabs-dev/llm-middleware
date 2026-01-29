@@ -1,3 +1,121 @@
+## [2.19.0] - 2026-01-29
+
+### ✨ New Feature: Retry with Exponential Backoff
+
+**Automatic retry for transient HTTP errors (429 Rate Limit, 5xx Server Errors, Timeouts) with exponential backoff and jitter.**
+
+Previously, all providers threw errors immediately on transient failures like rate limiting (HTTP 429). Consumers had to implement their own retry logic. This release adds built-in retry following [Google's recommended retry strategy](https://cloud.google.com/storage/docs/retry-strategy).
+
+#### Key Features
+
+- **Exponential Backoff**: Delays increase exponentially between retries (1s → 2s → 4s → ...)
+- **Jitter**: Random variation to prevent thundering herd effects
+- **Retry-After Header**: Respects server-provided `Retry-After` values
+- **Configurable**: Per-request configuration via `options.retry`
+- **Default ON**: Works out of the box with sensible defaults
+
+#### Retryable vs Non-Retryable Errors
+
+| Retryable (auto-retry) | Non-Retryable (fail immediately) |
+|------------------------|----------------------------------|
+| 408 Request Timeout | 400 Bad Request |
+| 429 Too Many Requests | 401 Unauthorized |
+| 500 Internal Server Error | 403 Forbidden |
+| 502 Bad Gateway | Other 4xx client errors |
+| 503 Service Unavailable | |
+| 504 Gateway Timeout | |
+| Network errors (ECONNRESET, ETIMEDOUT, etc.) | |
+
+#### Default Configuration
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `enabled` | `true` | Retry is on by default |
+| `maxRetries` | `3` | Maximum retry attempts |
+| `initialDelayMs` | `1000` | Initial delay before first retry |
+| `multiplier` | `2.0` | Delay multiplier per attempt |
+| `maxDelayMs` | `30000` | Maximum delay cap |
+| `jitter` | `true` | Randomize delays |
+
+#### Usage
+
+```typescript
+// Default behavior — retry is automatically enabled
+const response = await llmService.callWithSystemMessage(
+  'Hello',
+  'You are helpful',
+  { provider: LLMProvider.GOOGLE, model: 'gemini-2.5-flash' }
+);
+
+// Customize retry per request
+const response = await llmService.callWithSystemMessage(
+  'Hello',
+  'You are helpful',
+  {
+    provider: LLMProvider.GOOGLE,
+    model: 'gemini-2.5-flash',
+    retry: {
+      maxRetries: 5,
+      initialDelayMs: 2000,
+    }
+  }
+);
+
+// Disable retry for a specific request
+const response = await llmService.callWithSystemMessage(
+  'Hello',
+  'You are helpful',
+  {
+    provider: LLMProvider.GOOGLE,
+    model: 'gemini-2.5-flash',
+    retry: { enabled: false }
+  }
+);
+```
+
+#### Console Output (on retry)
+
+```
+WARN  [GeminiDirectProvider] Retrying request (attempt 1/3)
+  Metadata: { attempt: 1, maxRetries: 3, delayMs: 847, statusCode: 429 }
+```
+
+#### All Providers Supported
+
+Retry is integrated into all providers:
+- **GeminiBaseProvider** (Gemini Direct + Vertex AI)
+- **AnthropicProvider**
+- **RequestyProvider**
+- **OllamaProvider** (initial call only — existing auth-retry logic preserved)
+
+#### Files Added
+
+- `src/middleware/services/llm/utils/retry.utils.ts` — Retry utility with exponential backoff
+- `tests/unit/services/llm/utils/retry.utils.test.ts` — 17 unit tests for retry utility
+- `tests/unit/services/llm/providers/provider-retry.test.ts` — 11 provider-level integration tests
+
+#### Files Modified
+
+- `src/middleware/services/llm/utils/index.ts` — Export retry utility
+- `src/middleware/services/llm/types/common.types.ts` — Added `retry?: RetryConfig` to `CommonLLMOptions`
+- `src/middleware/services/llm/providers/gemini/gemini-base.provider.ts` — Wrapped axios call with `retryWithBackoff()`
+- `src/middleware/services/llm/providers/anthropic-provider.ts` — Wrapped axios call with `retryWithBackoff()`
+- `src/middleware/services/llm/providers/requesty-provider.ts` — Wrapped axios call with `retryWithBackoff()`
+- `src/middleware/services/llm/providers/ollama-provider.ts` — Wrapped initial axios call with `retryWithBackoff()`
+
+#### Backward Compatible
+
+- Retry is enabled by default but transparent — existing code works without changes
+- Non-retryable errors (400, 401, 403) behave exactly as before
+- Ollama's existing authentication fallback retry logic is preserved
+
+#### Tests
+
+- 17 unit tests: `isRetryableError`, `calculateDelay`, `retryWithBackoff` (including exponential timing verification)
+- 11 provider-level tests: Verify retry on 429/5xx, no-retry on 400/401/403, disable toggle
+
+---
+
 ## [2.18.0] - 2026-01-22
 
 ### ✨ Architectural Refactoring: ThinkingExtractor Strategy Pattern
