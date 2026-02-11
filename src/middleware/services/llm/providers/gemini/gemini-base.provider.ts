@@ -263,6 +263,13 @@ export abstract class GeminiBaseProvider extends BaseLLMProvider {
           // Gemini 2.5+/3+ returns thoughtsTokenCount for reasoning tokens
           ...(apiResponse.usageMetadata.thoughtsTokenCount !== undefined && {
             reasoningTokens: apiResponse.usageMetadata.thoughtsTokenCount
+          }),
+          // Implicit/explicit cache: cachedContentTokenCount = tokens served from cache
+          ...(apiResponse.usageMetadata.cachedContentTokenCount !== undefined &&
+            apiResponse.usageMetadata.cachedContentTokenCount > 0 && {
+            cacheMetadata: {
+              cacheReadTokens: apiResponse.usageMetadata.cachedContentTokenCount
+            }
           })
         }
       : undefined;
@@ -429,6 +436,11 @@ export abstract class GeminiBaseProvider extends BaseLLMProvider {
           requestDuration
         );
 
+        const cachedTokens = normalizedResponse.usage?.cacheMetadata?.cacheReadTokens;
+        const cacheHitRatio = cachedTokens && normalizedResponse.usage?.inputTokens
+          ? Math.round((cachedTokens / normalizedResponse.usage.inputTokens) * 100)
+          : undefined;
+
         logger.info(`Successfully received response from ${this.providerName} API`, {
           context: this.constructor.name,
           metadata: {
@@ -436,6 +448,10 @@ export abstract class GeminiBaseProvider extends BaseLLMProvider {
             responseLength: normalizedResponse.message.content.length,
             tokensUsed: normalizedResponse.usage?.totalTokens,
             reasoningTokens: normalizedResponse.usage?.reasoningTokens,
+            ...(cachedTokens !== undefined && {
+              cachedTokens,
+              cacheHitRatio: `${cacheHitRatio}%`
+            }),
             processingTime: requestDuration,
             finishReason: response.data.candidates?.[0]?.finishReason
           }

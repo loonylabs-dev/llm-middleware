@@ -144,6 +144,8 @@ export interface GeminiUsageMetadata {
   totalTokenCount: number;
   /** Reasoning/thinking tokens for Gemini 3+ models with thinking enabled */
   thoughtsTokenCount?: number;
+  /** Tokens served from implicit/explicit cache (Gemini 2.5+). Present when cache hit occurs. */
+  cachedContentTokenCount?: number;
 }
 
 /**

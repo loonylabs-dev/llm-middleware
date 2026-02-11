@@ -1,3 +1,73 @@
+## [2.20.0] - 2026-02-11
+
+### ✨ New Feature: Cache Token Tracking (Implicit Caching)
+
+**Automatic tracking of Google's implicit caching via `cachedContentTokenCount` in `usageMetadata`, mapped to the provider-agnostic `TokenUsage.cacheMetadata`.**
+
+Google enables implicit caching by default for Gemini 2.5+ models. When a request shares a common prefix with previous requests, cached tokens are served at a discounted rate (75% on Gemini Direct API, 90% on Vertex AI). This release tracks those cached tokens in the middleware's response.
+
+#### How It Works
+
+When Google returns `cachedContentTokenCount` in `usageMetadata`, it is mapped to the existing `cacheMetadata.cacheReadTokens` field - the same provider-agnostic interface already used by Anthropic's prompt caching.
+
+```typescript
+const response = await llmService.callWithSystemMessage(prompt, system, {
+  provider: LLMProvider.VERTEX_AI,
+  model: 'gemini-2.5-flash',
+});
+
+// When a cache hit occurs:
+console.log(response.usage?.cacheMetadata);
+// { cacheReadTokens: 11226 }  ← tokens served from cache
+```
+
+#### Provider Cache Comparison
+
+| Provider | Caching Type | Response Fields | Mapped To |
+|----------|-------------|-----------------|-----------|
+| **Google (Gemini/Vertex)** | Implicit (automatic) | `cachedContentTokenCount` | `cacheMetadata.cacheReadTokens` |
+| **Anthropic** | Explicit (`cache_control`) | `cache_creation_input_tokens` + `cache_read_input_tokens` | `cacheMetadata.cacheCreationTokens` + `cacheMetadata.cacheReadTokens` |
+
+#### Log Enhancement
+
+Cache hits are now logged automatically with hit ratio:
+
+```
+INFO [VertexAIProvider]: Successfully received response from vertex_ai API
+  Metadata: { tokensUsed: 11274, cachedTokens: 11226, cacheHitRatio: "100%", ... }
+```
+
+#### Implicit Caching Requirements
+
+| Model | Minimum Tokens | Discount |
+|-------|---------------|----------|
+| Gemini 2.5 Flash / Flash Lite | 1024 | 75% (Direct) / 90% (Vertex) |
+| Gemini 2.5 Pro | 2048-4096 | 75% (Direct) / 90% (Vertex) |
+
+**Note:** Implicit caching is not guaranteed - Google decides autonomously. No storage costs apply.
+
+#### Files Modified
+
+- `src/middleware/services/llm/types/gemini.types.ts` - Added `cachedContentTokenCount` to `GeminiUsageMetadata`
+- `src/middleware/services/llm/providers/gemini/gemini-base.provider.ts` - Cache mapping in `parseResponse()` + log enhancement
+
+#### Files Added
+
+- `tests/manual/cache-smoke-test.ts` - Smoke test for cache token tracking
+
+#### Tests
+
+- 4 new unit tests in `gemini-parse-response.test.ts` (cache mapping, zero handling, combined with reasoning tokens)
+- Smoke test: `npm run test:cache:smoke` (Vertex AI default) or `npm run test:cache:smoke -- google [model]`
+
+#### Backward Compatible
+
+- `cacheMetadata` is optional - no changes for providers that don't return cache info
+- Anthropic's existing `cacheCreationTokens` + `cacheReadTokens` mapping is unchanged
+- No new dependencies
+
+---
+
 ## [2.19.0] - 2026-01-29
 
 ### ✨ New Feature: Retry with Exponential Backoff
