@@ -280,6 +280,114 @@ describe('Gemini parseResponse - Thinking Parts Filtering', () => {
     });
   });
 
+  describe('Cache token tracking (implicit caching)', () => {
+    it('should map cachedContentTokenCount to cacheMetadata.cacheReadTokens', () => {
+      const apiResponse: GeminiAPIResponse = {
+        candidates: [
+          {
+            content: {
+              role: 'model',
+              parts: [{ text: 'Cached response' }]
+            },
+            index: 0
+          }
+        ],
+        usageMetadata: {
+          promptTokenCount: 2550,
+          candidatesTokenCount: 42,
+          totalTokenCount: 2592,
+          cachedContentTokenCount: 2500
+        }
+      };
+
+      const result = provider.testParseResponse(apiResponse, 'test-session', 'gemini-2.5-flash', 500);
+
+      expect(result.usage).toBeDefined();
+      expect(result.usage?.cacheMetadata).toBeDefined();
+      expect(result.usage?.cacheMetadata?.cacheReadTokens).toBe(2500);
+      expect(result.usage?.cacheMetadata?.cacheCreationTokens).toBeUndefined();
+    });
+
+    it('should not include cacheMetadata when cachedContentTokenCount is 0', () => {
+      const apiResponse: GeminiAPIResponse = {
+        candidates: [
+          {
+            content: {
+              role: 'model',
+              parts: [{ text: 'Non-cached response' }]
+            },
+            index: 0
+          }
+        ],
+        usageMetadata: {
+          promptTokenCount: 500,
+          candidatesTokenCount: 42,
+          totalTokenCount: 542,
+          cachedContentTokenCount: 0
+        }
+      };
+
+      const result = provider.testParseResponse(apiResponse, 'test-session', 'gemini-2.5-flash', 500);
+
+      expect(result.usage).toBeDefined();
+      expect(result.usage?.cacheMetadata).toBeUndefined();
+    });
+
+    it('should not include cacheMetadata when cachedContentTokenCount is absent', () => {
+      const apiResponse: GeminiAPIResponse = {
+        candidates: [
+          {
+            content: {
+              role: 'model',
+              parts: [{ text: 'Response' }]
+            },
+            index: 0
+          }
+        ],
+        usageMetadata: {
+          promptTokenCount: 100,
+          candidatesTokenCount: 50,
+          totalTokenCount: 150
+        }
+      };
+
+      const result = provider.testParseResponse(apiResponse, 'test-session', 'gemini-2.5-flash', 500);
+
+      expect(result.usage).toBeDefined();
+      expect(result.usage?.cacheMetadata).toBeUndefined();
+    });
+
+    it('should include both reasoningTokens and cacheMetadata when both are present', () => {
+      const apiResponse: GeminiAPIResponse = {
+        candidates: [
+          {
+            content: {
+              role: 'model',
+              parts: [
+                { text: 'Thinking...', thought: true },
+                { text: 'Response' }
+              ]
+            },
+            index: 0
+          }
+        ],
+        usageMetadata: {
+          promptTokenCount: 3000,
+          candidatesTokenCount: 50,
+          totalTokenCount: 3200,
+          thoughtsTokenCount: 150,
+          cachedContentTokenCount: 2800
+        }
+      };
+
+      const result = provider.testParseResponse(apiResponse, 'test-session', 'gemini-2.5-flash', 500);
+
+      expect(result.usage).toBeDefined();
+      expect(result.usage?.reasoningTokens).toBe(150);
+      expect(result.usage?.cacheMetadata?.cacheReadTokens).toBe(2800);
+    });
+  });
+
   describe('Edge cases', () => {
     it('should throw error when no candidates returned', () => {
       const apiResponse: GeminiAPIResponse = {
