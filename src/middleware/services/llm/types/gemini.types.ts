@@ -126,7 +126,8 @@ export interface GeminiAPIRequest {
  * Gemini candidate response
  */
 export interface GeminiCandidate {
-  content: GeminiContent;
+  /** May be absent when the response is blocked (e.g. SAFETY, RECITATION). */
+  content?: GeminiContent;
   finishReason?: string;
   index: number;
   safetyRatings?: Array<{

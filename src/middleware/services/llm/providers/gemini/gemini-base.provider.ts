@@ -238,12 +238,22 @@ export abstract class GeminiBaseProvider extends BaseLLMProvider {
     // Get the first candidate's content
     const candidate = apiResponse.candidates[0];
 
+    // Guard: content or parts may be missing on blocked responses (SAFETY, RECITATION, rate limits)
+    const parts = candidate.content?.parts;
+    if (!parts || !Array.isArray(parts) || parts.length === 0) {
+      const finishReason = candidate.finishReason || 'unknown';
+      throw new Error(
+        `Gemini response has no content parts (finishReason: ${finishReason}). ` +
+        `This typically happens when the response is blocked by safety filters.`
+      );
+    }
+
     // Separate thinking parts from content parts
     // When includeThoughts: true is set, Gemini returns:
     // - Parts with thought: true → thinking/reasoning content
     // - Parts without thought: true → actual response content
-    const thinkingParts = candidate.content.parts.filter(part => part.thought === true);
-    const contentParts = candidate.content.parts.filter(part => part.thought !== true);
+    const thinkingParts = parts.filter(part => part.thought === true);
+    const contentParts = parts.filter(part => part.thought !== true);
 
     const responseText = contentParts
       .map(part => part.text)

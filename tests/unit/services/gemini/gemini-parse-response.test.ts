@@ -399,6 +399,52 @@ describe('Gemini parseResponse - Thinking Parts Filtering', () => {
       }).toThrow('No candidates returned from Gemini API');
     });
 
+    it('should throw descriptive error when content.parts is missing (SAFETY block)', () => {
+      const apiResponse = {
+        candidates: [
+          {
+            content: { role: 'model' as const },
+            finishReason: 'SAFETY',
+            index: 0
+          }
+        ]
+      } as GeminiAPIResponse;
+
+      expect(() => {
+        provider.testParseResponse(apiResponse, 'test-session', 'gemini-3-flash', 500);
+      }).toThrow('Gemini response has no content parts (finishReason: SAFETY)');
+    });
+
+    it('should throw descriptive error when content is missing entirely', () => {
+      const apiResponse = {
+        candidates: [
+          {
+            finishReason: 'RECITATION',
+            index: 0
+          }
+        ]
+      } as GeminiAPIResponse;
+
+      expect(() => {
+        provider.testParseResponse(apiResponse, 'test-session', 'gemini-3-flash', 500);
+      }).toThrow('Gemini response has no content parts (finishReason: RECITATION)');
+    });
+
+    it('should throw error with "unknown" when finishReason is also missing', () => {
+      const apiResponse = {
+        candidates: [
+          {
+            content: { role: 'model' as const, parts: [] },
+            index: 0
+          }
+        ]
+      } as GeminiAPIResponse;
+
+      expect(() => {
+        provider.testParseResponse(apiResponse, 'test-session', 'gemini-3-flash', 500);
+      }).toThrow('Gemini response has no content parts (finishReason: unknown)');
+    });
+
     it('should handle response with only thinking parts (edge case)', () => {
       const apiResponse: GeminiAPIResponse = {
         candidates: [

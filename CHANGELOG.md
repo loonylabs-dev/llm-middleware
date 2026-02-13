@@ -1,3 +1,54 @@
+## [2.21.0] - 2026-02-13
+
+### 🐛 Bug Fix: Gemini parseResponse crash on missing content.parts
+
+**Fixed a crash in `GeminiBaseProvider.parseResponse()` when the Gemini API returns candidates without `content.parts`.**
+
+This happens when responses are blocked by safety filters, content policy, or during certain rate-limit edge cases. The API returns a candidate with `finishReason: "SAFETY"` (or similar) but no `content.parts` array, causing an uncaught `Cannot read properties of undefined (reading 'filter')` error.
+
+#### The Problem
+
+```json
+{
+  "candidates": [{
+    "finishReason": "SAFETY",
+    "content": { "role": "model" }
+  }]
+}
+```
+
+The existing guard only checked for empty `candidates[]` but not for missing `content` or `content.parts` within a candidate.
+
+#### The Fix
+
+- Added a guard after candidate access that checks `candidate.content?.parts`
+- Throws a descriptive error including `finishReason` (e.g. `"Gemini response has no content parts (finishReason: SAFETY)"`)
+- The error is catchable by retry logic and UseCase error handlers
+- Made `GeminiCandidate.content` optional in types to match API reality
+
+#### Why Not a Silent Fallback?
+
+Returning an empty string would mask the issue and waste downstream processing. A clear error lets the caller (agentRunner retry logic) decide whether to retry or surface the error.
+
+#### Files Modified
+
+- `src/middleware/services/llm/providers/gemini/gemini-base.provider.ts` — Guard in `parseResponse()`
+- `src/middleware/services/llm/types/gemini.types.ts` — `GeminiCandidate.content` now optional
+
+#### Tests
+
+- 3 new unit tests in `gemini-parse-response.test.ts`:
+  - SAFETY block (content exists, parts missing)
+  - RECITATION block (content missing entirely)
+  - Unknown finishReason (empty parts array)
+
+#### Backward Compatible
+
+- Normal responses (with `content.parts`) behave exactly as before
+- Only affects the crash path — now throws a descriptive error instead of `TypeError`
+
+---
+
 ## [2.20.0] - 2026-02-11
 
 ### ✨ New Feature: Cache Token Tracking (Implicit Caching)
