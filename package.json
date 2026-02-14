@@ -1,6 +1,6 @@
 {
   "name": "@loonylabs/llm-middleware",
-  "version": "2.21.0",
+  "version": "2.22.0",
   "description": "Complete middleware infrastructure for LLM-based backends with multi-provider support (Ollama, Anthropic, OpenAI, Google)",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -31,6 +31,7 @@
     "test:live": "LLM_INTEGRATION_TESTS=true jest tests/integration/*.integration.test.ts --testTimeout=120000",
     "test:reasoning:smoke": "ts-node tests/manual/reasoning-smoke-test.ts",
     "test:cache:smoke": "ts-node tests/manual/cache-smoke-test.ts",
+    "test:vision:smoke": "ts-node tests/manual/vision-smoke-test.ts",
     "test:ci": "jest --runInBand --ci --coverage",
     "lint": "eslint src/**/*.ts",
     "clean": "node -e \"const fs=require('fs');if(fs.existsSync('dist'))fs.rmSync('dist',{recursive:true})\"",

@@ -41,11 +41,28 @@ export interface AnthropicRequestOptions extends CommonLLMOptions {
 }
 
 /**
- * Anthropic message format
+ * Anthropic image source (base64-encoded)
+ */
+export interface AnthropicImageSource {
+  type: 'base64';
+  media_type: string;
+  data: string;
+}
+
+/**
+ * Anthropic content part for multimodal messages
+ */
+export type AnthropicContentPart =
+  | { type: 'text'; text: string }
+  | { type: 'image'; source: AnthropicImageSource };
+
+/**
+ * Anthropic message format.
+ * Content can be a plain string (text-only) or an array of content parts (multimodal).
  */
 export interface AnthropicMessage {
   role: 'user' | 'assistant';
-  content: string;
+  content: string | AnthropicContentPart[];
 }
 
 /**

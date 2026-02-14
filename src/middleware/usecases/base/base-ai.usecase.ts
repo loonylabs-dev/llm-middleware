@@ -6,6 +6,8 @@ import { BaseAIRequest, BaseAIResult } from '../../shared/types/base-request.typ
 import { logger } from '../../shared/utils/logging.utils';
 import { ModelParameterManagerService, ModelParameterOverrides } from '../../services/model-parameter-manager/model-parameter-manager.service';
 import { UseCaseMetricsLoggerService } from '../../services/use-case-metrics-logger';
+import { MultimodalContent } from '../../services/llm/types/multimodal.types';
+import { contentToDebugString, contentLength } from '../../services/llm/utils/multimodal.utils';
 
 /**
  * Base abstract class for all AI use cases
@@ -119,6 +121,23 @@ export abstract class BaseAIUseCase<
   protected abstract getUserTemplate(): (formattedPrompt: string) => string;
 
   /**
+   * Optional override for multimodal content.
+   * When this method returns non-null, the result is sent directly to the provider,
+   * bypassing the text-only path (formatUserMessage + getUserTemplate).
+   *
+   * Override in child classes that need to send images alongside text.
+   *
+   * @param prompt - The raw prompt data
+   * @param request - The full request object
+   * @returns MultimodalContent or null (default: null = text-only path)
+   *
+   * @since 2.22.0
+   */
+  protected formatMultimodalContent(prompt: TPrompt, request: TRequest): MultimodalContent | null {
+    return null;
+  }
+
+  /**
    * Override model parameters for this specific use case
    * Override this method in child classes to customize parameters
    * @returns Parameter overrides to apply to the default model configuration
@@ -152,12 +171,20 @@ export abstract class BaseAIUseCase<
     // Get effective system message (may be dynamic based on request)
     const effectiveSystemMessage = this.getSystemMessage(request);
 
-    // Format the raw prompt using formatUserMessage
-    const formattedPrompt = this.formatUserMessage(request.prompt);
-    
-    // Apply the user template to create the final message
-    const userTemplate = this.getUserTemplate();
-    const formattedUserMessage = userTemplate(formattedPrompt);
+    // Check for multimodal content (opt-in by child classes)
+    const multimodalContent = this.formatMultimodalContent(request.prompt, request);
+
+    let formattedUserMessage: MultimodalContent;
+    if (multimodalContent !== null) {
+      // Multimodal path: use content directly (bypasses text template)
+      formattedUserMessage = multimodalContent;
+    } else {
+      // Standard text-only path (unchanged)
+      const formattedPrompt = this.formatUserMessage(request.prompt);
+      const userTemplate = this.getUserTemplate();
+      formattedUserMessage = userTemplate(formattedPrompt);
+    }
+
     const startTime = Date.now();
     let success = false;
     let errorMessage = '';
@@ -184,10 +211,13 @@ export abstract class BaseAIUseCase<
     const effectiveReasoningEffort = request.reasoningEffort;
 
     // Log the start of execution with metrics
+    const messageLength = contentLength(formattedUserMessage);
+    const messageDebugString = contentToDebugString(formattedUserMessage);
+
     UseCaseMetricsLoggerService.logStart(
       this.constructor.name,
       this.modelConfig.name,
-      formattedUserMessage.length,
+      messageLength,
       effectiveTemperature,
       definedParams
     );
@@ -249,7 +279,7 @@ export abstract class BaseAIUseCase<
       const metrics = UseCaseMetricsLoggerService.calculateMetrics(
         startTime,
         effectiveSystemMessage,
-        formattedUserMessage,
+        messageDebugString,
         result.message.content,
         thinking,
         this.modelConfig.name,
@@ -265,7 +295,7 @@ export abstract class BaseAIUseCase<
       // Create the business result from concrete implementation
       const businessResult = this.createResult(
         processedContent,
-        formattedUserMessage,
+        messageDebugString,
         thinking
       );
 
@@ -284,7 +314,7 @@ export abstract class BaseAIUseCase<
       const metrics = UseCaseMetricsLoggerService.calculateMetrics(
         startTime,
         effectiveSystemMessage,
-        formattedUserMessage,
+        messageDebugString,
         '',
         thinking,
         this.modelConfig.name,

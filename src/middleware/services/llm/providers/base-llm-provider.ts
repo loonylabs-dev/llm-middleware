@@ -4,6 +4,7 @@
  */
 
 import { CommonLLMOptions, CommonLLMResponse, LLMProvider } from '../types';
+import { MultimodalContent } from '../types/multimodal.types';
 
 export abstract class BaseLLMProvider {
   protected providerName: LLMProvider;
@@ -29,7 +30,7 @@ export abstract class BaseLLMProvider {
    * @returns The API response or null on error
    */
   abstract callWithSystemMessage(
-    userPrompt: string,
+    userPrompt: MultimodalContent,
     systemMessage: string,
     options: CommonLLMOptions
   ): Promise<CommonLLMResponse | null>;
@@ -42,7 +43,7 @@ export abstract class BaseLLMProvider {
    * @returns The API response or null on error
    */
   public async call(
-    prompt: string,
+    prompt: MultimodalContent,
     options: CommonLLMOptions = {}
   ): Promise<CommonLLMResponse | null> {
     const defaultSystemMessage = "You are a helpful assistant, who provides clear and precise answers.";

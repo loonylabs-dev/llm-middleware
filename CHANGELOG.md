@@ -1,3 +1,137 @@
+## [2.22.0] - 2026-02-14
+
+### ✨ New Feature: Vision / Multimodal Input
+
+**Provider-agnostic vision support — send images (base64) alongside text to LLM providers.**
+
+This release adds multimodal content support to the middleware, allowing consumers to include images as part of user prompts. The primary use case is Google Gemini 3 Flash via Vertex AI, with Anthropic and OpenAI/Requesty prepared for future activation.
+
+#### The Design: `MultimodalContent`
+
+```typescript
+// Backward-compatible: string still works everywhere
+const response = await llmService.callWithSystemMessage(
+  'Hello world',  // string — works exactly as before
+  'You are helpful',
+  { provider: LLMProvider.VERTEX_AI, model: 'gemini-3-flash-preview' }
+);
+
+// NEW: Send images alongside text
+const response = await llmService.callWithSystemMessage(
+  [
+    { type: 'image', data: base64ImageData, mimeType: 'image/png' },
+    { type: 'text', text: 'Describe this image in one sentence.' }
+  ],
+  'You are a helpful image analyst.',
+  { provider: LLMProvider.VERTEX_AI, model: 'gemini-3-flash-preview' }
+);
+```
+
+#### New Types
+
+```typescript
+type MultimodalContent = string | ContentPart[];
+
+type ContentPart = TextContentPart | ImageContentPart;
+
+interface ImageContentPart {
+  type: 'image';
+  data: string;          // base64-encoded (no data-URI prefix)
+  mimeType: 'image/jpeg' | 'image/png' | 'image/webp' | 'image/gif';
+  detail?: 'low' | 'high' | 'auto';  // Optional resolution hint
+}
+```
+
+#### Provider Support
+
+| Provider | Status | Image Format |
+|----------|--------|-------------|
+| **Gemini / Vertex AI** | ✅ Fully implemented | `inlineData: { mimeType, data }` |
+| **Anthropic** | ✅ Prepared | `source: { type: 'base64', media_type, data }` |
+| **Requesty / OpenAI** | ✅ Prepared | `image_url: { url: 'data:...;base64,...' }` |
+| **Ollama** | ⚠️ Text extraction only | Images ignored, text parts used |
+
+#### BaseAIUseCase: Multimodal Hook
+
+Consumer use cases can opt into multimodal by overriding `formatMultimodalContent()`:
+
+```typescript
+class VisionQualityGateUseCase extends BaseAIUseCase<MyPrompt, MyRequest, MyResult> {
+  protected formatMultimodalContent(prompt: MyPrompt, request: MyRequest): MultimodalContent | null {
+    if (prompt.imageBase64) {
+      return [
+        { type: 'image', data: prompt.imageBase64, mimeType: 'image/png' },
+        { type: 'text', text: `Evaluate this image: ${prompt.criteria}` }
+      ];
+    }
+    return null; // Falls back to standard text-only path
+  }
+}
+```
+
+#### Debug Logging: No Base64 in Logs
+
+All providers use `contentToDebugString()` to replace image data with safe placeholders:
+
+```
+👤 USER MESSAGE:
+--------------------------------------------------
+[IMAGE: image/png, 1.4MB]
+Describe this image in one sentence.
+```
+
+#### Utility Functions
+
+```typescript
+import {
+  normalizeContent,      // string → ContentPart[]
+  contentToDebugString,  // Safe string for logging (no base64)
+  hasImages,             // Check if content contains images
+  contentLength,         // Effective length for metrics
+  extractTextContent,    // Get text-only content
+  countImages,           // Count image parts
+} from '@loonylabs/llm-middleware';
+```
+
+#### Files Added
+
+- `src/middleware/services/llm/types/multimodal.types.ts` — Type definitions
+- `src/middleware/services/llm/utils/multimodal.utils.ts` — Utility functions
+- `tests/unit/services/llm/utils/multimodal.utils.test.ts` — 22 unit tests
+- `tests/unit/services/llm/providers/multimodal-providers.test.ts` — 6 provider tests
+- `tests/fixtures/images/unicorn-test-image.png` — Test image for smoke tests
+- `tests/manual/vision-smoke-test.ts` — Smoke test for vision via Vertex AI / Google Direct
+
+#### Files Modified
+
+- `src/middleware/services/llm/providers/base-llm-provider.ts` — Signature: `string` → `MultimodalContent`
+- `src/middleware/services/llm/llm.service.ts` — Signature: `string` → `MultimodalContent`
+- `src/middleware/services/llm/providers/gemini/gemini-base.provider.ts` — `buildRequestPayload` multimodal, debug logging
+- `src/middleware/services/llm/types/gemini.types.ts` — `GeminiPart.text` optional, `inlineData` added
+- `src/middleware/services/llm/providers/anthropic-provider.ts` — Multimodal message building
+- `src/middleware/services/llm/types/anthropic.types.ts` — `AnthropicMessage.content` extended
+- `src/middleware/services/llm/providers/requesty-provider.ts` — Multimodal message building
+- `src/middleware/services/llm/types/requesty.types.ts` — `RequestyContentPart` added
+- `src/middleware/services/llm/providers/ollama-provider.ts` — Text extraction from multimodal
+- `src/middleware/usecases/base/base-ai.usecase.ts` — `formatMultimodalContent()` hook, multimodal execute path
+- `src/middleware/services/llm/types/index.ts` — Export multimodal types
+- `src/middleware/services/llm/utils/index.ts` — Export multimodal utils
+
+#### Tests
+
+- 22 unit tests for multimodal utils (normalizeContent, contentToDebugString, hasImages, etc.)
+- 6 unit tests for Gemini buildRequestPayload (string regression + multimodal formats)
+- All 367 existing tests pass (0 regressions)
+- Smoke test: `npm run test:vision:smoke -- [vertex_ai|google] [model]`
+
+#### Backward Compatible
+
+- `string` input works everywhere as before — no consumer changes needed
+- `MultimodalContent = string | ContentPart[]` is a widening of the type
+- All debug logging remains `string` (images replaced with placeholders)
+
+---
+
 ## [2.21.0] - 2026-02-13
 
 ### 🐛 Bug Fix: Gemini parseResponse crash on missing content.parts

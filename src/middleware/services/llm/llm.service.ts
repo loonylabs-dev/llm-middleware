@@ -10,6 +10,7 @@ import { GeminiProvider } from './providers/gemini-provider';
 import { RequestyProvider } from './providers/requesty-provider';
 import { VertexAIProvider } from './providers/gemini';
 import { LLMProvider, CommonLLMOptions, CommonLLMResponse } from './types';
+import { MultimodalContent } from './types/multimodal.types';
 
 export class LLMService {
   private providers: Map<LLMProvider, BaseLLMProvider>;
@@ -58,7 +59,7 @@ export class LLMService {
    * Uses the specified provider or the default provider
    */
   public async callWithSystemMessage(
-    userPrompt: string,
+    userPrompt: MultimodalContent,
     systemMessage: string,
     options: CommonLLMOptions & { provider?: LLMProvider } = {}
   ): Promise<CommonLLMResponse | null> {
@@ -72,7 +73,7 @@ export class LLMService {
    * Uses the specified provider or the default provider
    */
   public async call(
-    prompt: string,
+    prompt: MultimodalContent,
     options: CommonLLMOptions & { provider?: LLMProvider } = {}
   ): Promise<CommonLLMResponse | null> {
     const provider = options.provider || this.defaultProvider;

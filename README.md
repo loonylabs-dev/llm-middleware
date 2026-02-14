@@ -46,6 +46,10 @@
   - ✅ **Google Vertex AI**: CDPA/GDPR-compliant with EU data residency (Service Account auth)
   - ✅ **Requesty.AI**: 300+ models via unified API, built-in cost tracking
   - 🔌 **Pluggable**: Easy to add custom providers - see [LLM Providers Guide](docs/LLM_PROVIDERS.md)
+- 👁️ **Vision / Multimodal Input**: Send images alongside text to LLM providers
+  - ✨ **v2.22.0**: Provider-agnostic `MultimodalContent` type (`string | ContentPart[]`)
+  - ✅ Gemini/Vertex AI fully implemented, Anthropic & OpenAI/Requesty prepared
+  - 🔒 No base64 blobs in logs — images logged as `[IMAGE: image/png, 1.4MB]`
 - 🔄 **Automatic Retry**: Exponential backoff with jitter for transient errors (429, 5xx, timeouts)
   - ✨ **v2.19.0**: Configurable per-request via `retry` option, enabled by default
 - 🧠 **Reasoning Control**: Control model thinking effort via `reasoningEffort` parameter

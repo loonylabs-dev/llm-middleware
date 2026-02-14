@@ -10,10 +10,12 @@ import {
   AnthropicResponse,
   AnthropicThinkingConfig
 } from '../types/anthropic.types';
+import { MultimodalContent } from '../types/multimodal.types';
 import { LLMDebugger, LLMDebugInfo } from '../utils/debug-llm.utils';
 import { DataFlowLoggerService } from '../../data-flow-logger';
 import { ThinkingExtractorFactory } from '../thinking';
 import { retryWithBackoff } from '../utils/retry.utils';
+import { normalizeContent, hasImages, contentToDebugString, contentLength } from '../utils/multimodal.utils';
 
 /**
  * Maps provider-agnostic ReasoningEffort to Anthropic budget_tokens.
@@ -60,7 +62,7 @@ export class AnthropicProvider extends BaseLLMProvider {
    * @returns The API response or null on error
    */
   public async callWithSystemMessage(
-    userPrompt: string,
+    userPrompt: MultimodalContent,
     systemMessage: string,
     options: AnthropicRequestOptions = {}
   ): Promise<CommonLLMResponse | null> {
@@ -108,11 +110,28 @@ export class AnthropicProvider extends BaseLLMProvider {
       ? { type: 'enabled', budget_tokens: thinkingBudget }
       : undefined;
 
+    // Build message content: multimodal (with images) or plain string
+    const messageContent = hasImages(userPrompt)
+      ? normalizeContent(userPrompt).map(part => {
+          if (part.type === 'text') {
+            return { type: 'text' as const, text: part.text };
+          }
+          return {
+            type: 'image' as const,
+            source: {
+              type: 'base64' as const,
+              media_type: part.mimeType,
+              data: part.data
+            }
+          };
+        })
+      : (typeof userPrompt === 'string' ? userPrompt : normalizeContent(userPrompt).map(p => (p as { type: 'text'; text: string }).text).join('\n'));
+
     // Build the request payload
     const requestPayload: AnthropicAPIRequest = {
       model: model,
       messages: [
-        { role: 'user', content: userPrompt }
+        { role: 'user', content: messageContent }
       ],
       max_tokens: maxTokens,
       temperature: temperature,
@@ -132,14 +151,16 @@ export class AnthropicProvider extends BaseLLMProvider {
       // Ignore as it's optional
     }
 
-    // Prepare debug info
+    // Prepare debug info (use debug string to avoid base64 blobs in logs)
+    const userMessageDebug = contentToDebugString(userPrompt);
+
     const debugInfo: LLMDebugInfo = {
       timestamp: new Date(),
       provider: this.providerName,
       model: model,
       baseUrl: this.BASE_URL,
       systemMessage: systemMessage,
-      userMessage: userPrompt,
+      userMessage: userMessageDebug,
       requestData: requestPayload,
       useCase: debugContext,
       clientRequestBody: clientRequestBody,
@@ -167,7 +188,7 @@ export class AnthropicProvider extends BaseLLMProvider {
     this.dataFlowLogger.logLLMRequest(
       {
         stage: debugContext || 'anthropic-direct',
-        prompt: userPrompt,
+        prompt: userMessageDebug,
         systemMessage: systemMessage,
         modelName: model,
         temperature: temperature,
@@ -196,7 +217,7 @@ export class AnthropicProvider extends BaseLLMProvider {
         metadata: {
           url: `${this.BASE_URL}/messages`,
           model: model,
-          promptLength: userPrompt.length,
+          promptLength: contentLength(userPrompt),
           maxTokens: maxTokens
         }
       });

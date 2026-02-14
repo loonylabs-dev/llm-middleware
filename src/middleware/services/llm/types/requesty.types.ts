@@ -21,13 +21,20 @@ export interface RequestyRequestOptions extends CommonLLMOptions {
 export type RequestyReasoningEffort = 'none' | 'min' | 'low' | 'medium' | 'high' | 'max';
 
 /**
+ * OpenAI-compatible content part for multimodal messages
+ */
+export type RequestyContentPart =
+  | { type: 'text'; text: string }
+  | { type: 'image_url'; image_url: { url: string; detail?: 'low' | 'high' | 'auto' } };
+
+/**
  * OpenAI-compatible request format for Requesty API
  */
 export interface RequestyAPIRequest {
   model: string;  // Format: provider/model-name (e.g., "openai/gpt-4o")
   messages: Array<{
     role: 'system' | 'user' | 'assistant';
-    content: string;
+    content: string | RequestyContentPart[];
   }>;
   temperature?: number;
   max_tokens?: number;

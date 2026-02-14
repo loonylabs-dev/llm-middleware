@@ -4,10 +4,12 @@ import { logger } from '../../../shared/utils/logging.utils';
 import { BaseLLMProvider } from './base-llm-provider';
 import { LLMProvider, CommonLLMResponse, TokenUsage } from '../types';
 import { OllamaRequestOptions, OllamaResponse } from '../types/ollama.types';
+import { MultimodalContent } from '../types/multimodal.types';
 import { LLMDebugger, LLMDebugInfo } from '../utils/debug-llm.utils';
 import { DataFlowLoggerService } from '../../data-flow-logger';
 import { ThinkingExtractorFactory } from '../thinking';
 import { retryWithBackoff } from '../utils/retry.utils';
+import { extractTextContent, contentToDebugString, contentLength } from '../utils/multimodal.utils';
 
 /**
  * Ollama provider implementation with advanced features:
@@ -33,7 +35,7 @@ export class OllamaProvider extends BaseLLMProvider {
    * @returns The API response or null on error
    */
   public async callWithSystemMessage(
-    userPrompt: string,
+    userPrompt: MultimodalContent,
     systemMessage: string,
     options: OllamaRequestOptions = {}
   ): Promise<CommonLLMResponse | null> {
@@ -64,6 +66,9 @@ export class OllamaProvider extends BaseLLMProvider {
       );
     }
 
+    // Ollama uses text-only messages; extract text content from multimodal input
+    const textContent = extractTextContent(userPrompt);
+
     const headers: Record<string, string> = {
       'Content-Type': 'application/json'
     };
@@ -77,7 +82,7 @@ export class OllamaProvider extends BaseLLMProvider {
       model: model,
       messages: [
         { role: "system", content: systemMessage },
-        { role: "user", content: userPrompt }
+        { role: "user", content: textContent }
       ],
       temperature: temperature,
       stream: false,
@@ -107,13 +112,15 @@ export class OllamaProvider extends BaseLLMProvider {
     }
 
     // Prepare debug info
+    const userMessageDebug = contentToDebugString(userPrompt);
+
     const debugInfo: LLMDebugInfo = {
       timestamp: new Date(),
       provider: this.providerName,
       model: model,
       baseUrl: baseUrl,
       systemMessage: systemMessage,
-      userMessage: userPrompt,
+      userMessage: userMessageDebug,
       requestData: data,
       useCase: debugContext,
       clientRequestBody: clientRequestBody,
@@ -138,7 +145,7 @@ export class OllamaProvider extends BaseLLMProvider {
     this.dataFlowLogger.logLLMRequest(
       {
         stage: debugContext || 'ollama-direct',
-        prompt: userPrompt,
+        prompt: userMessageDebug,
         systemMessage: systemMessage,
         modelName: model,
         temperature: temperature,
@@ -171,7 +178,7 @@ export class OllamaProvider extends BaseLLMProvider {
           url: `${baseUrl}/api/chat`,
           model: model,
           hasAuthToken: !!authToken,
-          promptLength: userPrompt.length
+          promptLength: contentLength(userPrompt)
         }
       });
 
@@ -531,7 +538,7 @@ export class OllamaProvider extends BaseLLMProvider {
    * Backward compatibility: Old method name
    */
   public async callOllamaApiWithSystemMessage(
-    userPrompt: string,
+    userPrompt: MultimodalContent,
     systemMessage: string,
     options: OllamaRequestOptions = {}
   ): Promise<OllamaResponse | null> {
@@ -542,7 +549,7 @@ export class OllamaProvider extends BaseLLMProvider {
    * Backward compatibility: Old method name
    */
   public async callOllamaApi(
-    prompt: string,
+    prompt: MultimodalContent,
     options: OllamaRequestOptions = {}
   ): Promise<OllamaResponse | null> {
     return this.call(prompt, options) as Promise<OllamaResponse | null>;

@@ -13,11 +13,14 @@ import {
   GeminiAPIRequest,
   GeminiAPIResponse,
   GeminiGenerationConfig,
+  GeminiPart,
   GeminiThinkingLevel
 } from '../../types/gemini.types';
+import { MultimodalContent } from '../../types/multimodal.types';
 import { LLMDebugger, LLMDebugInfo } from '../../utils/debug-llm.utils';
 import { DataFlowLoggerService } from '../../../data-flow-logger';
 import { retryWithBackoff } from '../../utils/retry.utils';
+import { normalizeContent, contentToDebugString, contentLength } from '../../utils/multimodal.utils';
 
 /**
  * Gemini model generation - determines which reasoning API to use.
@@ -203,15 +206,28 @@ export abstract class GeminiBaseProvider extends BaseLLMProvider {
    * Build the API request payload.
    */
   protected buildRequestPayload(
-    userPrompt: string,
+    userPrompt: MultimodalContent,
     systemMessage: string,
     generationConfig: GeminiGenerationConfig
   ): GeminiAPIRequest {
+    const parts: GeminiPart[] = normalizeContent(userPrompt).map(part => {
+      if (part.type === 'text') {
+        return { text: part.text };
+      }
+      // ImageContentPart → Gemini inlineData format
+      return {
+        inlineData: {
+          mimeType: part.mimeType,
+          data: part.data
+        }
+      };
+    });
+
     return {
       contents: [
         {
           role: 'user',
-          parts: [{ text: userPrompt }]
+          parts
         }
       ],
       generationConfig,
@@ -256,12 +272,13 @@ export abstract class GeminiBaseProvider extends BaseLLMProvider {
     const contentParts = parts.filter(part => part.thought !== true);
 
     const responseText = contentParts
+      .filter(part => part.text !== undefined)
       .map(part => part.text)
       .join('\n');
 
     // Extract thinking text separately (undefined if no thinking parts)
     const thinkingText = thinkingParts.length > 0
-      ? thinkingParts.map(part => part.text).join('\n')
+      ? thinkingParts.filter(part => part.text !== undefined).map(part => part.text).join('\n')
       : undefined;
 
     // Normalize token usage to provider-agnostic format
@@ -306,7 +323,7 @@ export abstract class GeminiBaseProvider extends BaseLLMProvider {
    * This is the main entry point - uses template method pattern.
    */
   public async callWithSystemMessage(
-    userPrompt: string,
+    userPrompt: MultimodalContent,
     systemMessage: string,
     options: GeminiProviderOptions = {}
   ): Promise<CommonLLMResponse | null> {
@@ -346,14 +363,16 @@ export abstract class GeminiBaseProvider extends BaseLLMProvider {
       // Ignore as it's optional
     }
 
-    // Prepare debug info
+    // Prepare debug info (use debug string to avoid base64 blobs in logs)
+    const userMessageDebug = contentToDebugString(userPrompt);
+
     const debugInfo: LLMDebugInfo = {
       timestamp: new Date(),
       provider: this.providerName,
       model,
       baseUrl: this.getBaseUrl(model, options),
       systemMessage,
-      userMessage: userPrompt,
+      userMessage: userMessageDebug,
       requestData: requestPayload,
       useCase: debugContext,
       clientRequestBody,
@@ -381,7 +400,7 @@ export abstract class GeminiBaseProvider extends BaseLLMProvider {
     this.dataFlowLogger.logLLMRequest(
       {
         stage: debugContext || this.providerName,
-        prompt: userPrompt,
+        prompt: userMessageDebug,
         systemMessage,
         modelName: model,
         temperature: generationConfig.temperature,
@@ -414,7 +433,7 @@ export abstract class GeminiBaseProvider extends BaseLLMProvider {
         metadata: {
           url: endpoint,
           model,
-          promptLength: userPrompt.length,
+          promptLength: contentLength(userPrompt),
           maxOutputTokens: generationConfig.maxOutputTokens
         }
       });

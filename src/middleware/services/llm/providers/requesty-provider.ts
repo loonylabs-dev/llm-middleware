@@ -11,9 +11,11 @@ import {
   RequestyResponse,
   RequestyReasoningEffort
 } from '../types/requesty.types';
+import { MultimodalContent } from '../types/multimodal.types';
 import { LLMDebugger, LLMDebugInfo } from '../utils/debug-llm.utils';
 import { DataFlowLoggerService } from '../../data-flow-logger';
 import { retryWithBackoff } from '../utils/retry.utils';
+import { normalizeContent, hasImages, contentToDebugString, contentLength } from '../utils/multimodal.utils';
 
 /**
  * Check if the model is a Google/Gemini model.
@@ -71,7 +73,7 @@ export class RequestyProvider extends BaseLLMProvider {
    * Call Requesty API with custom system message
    */
   public async callWithSystemMessage(
-    userPrompt: string,
+    userPrompt: MultimodalContent,
     systemMessage: string,
     options: RequestyRequestOptions = {}
   ): Promise<CommonLLMResponse | null> {
@@ -117,12 +119,29 @@ export class RequestyProvider extends BaseLLMProvider {
     if (httpReferer) headers['HTTP-Referer'] = httpReferer;
     if (xTitle) headers['X-Title'] = xTitle;
 
+    // Build user message content: multimodal (with images) or plain string
+    const userMessageContent = hasImages(userPrompt)
+      ? normalizeContent(userPrompt).map(part => {
+          if (part.type === 'text') {
+            return { type: 'text' as const, text: part.text };
+          }
+          // OpenAI format: image_url with data URI
+          return {
+            type: 'image_url' as const,
+            image_url: {
+              url: `data:${part.mimeType};base64,${part.data}`,
+              ...(part.detail && { detail: part.detail })
+            }
+          };
+        })
+      : (typeof userPrompt === 'string' ? userPrompt : normalizeContent(userPrompt).map(p => (p as { type: 'text'; text: string }).text).join('\n'));
+
     // Build request payload (OpenAI format)
     const requestPayload: RequestyAPIRequest = {
       model: model,
       messages: [
         { role: 'system', content: systemMessage },
-        { role: 'user', content: userPrompt }
+        { role: 'user', content: userMessageContent }
       ],
       max_tokens: maxTokens,
       temperature: temperature,
@@ -131,14 +150,16 @@ export class RequestyProvider extends BaseLLMProvider {
       ...(reasoningEffort && { reasoning_effort: mapReasoningEffort(reasoningEffort, model) })
     };
 
-    // Prepare debug info
+    // Prepare debug info (use debug string to avoid base64 blobs in logs)
+    const userMessageDebug = contentToDebugString(userPrompt);
+
     const debugInfo: LLMDebugInfo = {
       timestamp: new Date(),
       provider: this.providerName,
       model: model,
       baseUrl: this.BASE_URL,
       systemMessage: systemMessage,
-      userMessage: userPrompt,
+      userMessage: userMessageDebug,
       requestData: requestPayload,
       useCase: debugContext,
       sessionId: sessionId,
@@ -167,7 +188,7 @@ export class RequestyProvider extends BaseLLMProvider {
     this.dataFlowLogger.logLLMRequest(
       {
         stage: debugContext || 'requesty-direct',
-        prompt: userPrompt,
+        prompt: userMessageDebug,
         systemMessage: systemMessage,
         modelName: model,
         temperature: temperature,
@@ -185,7 +206,7 @@ export class RequestyProvider extends BaseLLMProvider {
         metadata: {
           url: `${this.BASE_URL}/chat/completions`,
           model: model,
-          promptLength: userPrompt.length,
+          promptLength: contentLength(userPrompt),
           maxTokens: maxTokens
         }
       });

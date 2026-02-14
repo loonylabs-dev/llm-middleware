@@ -73,7 +73,15 @@ export interface GeminiRequestOptions extends CommonLLMOptions {
  * - thoughtSignature - Present on the actual content part (non-thinking)
  */
 export interface GeminiPart {
-  text: string;
+  /** Text content. Optional when inlineData is provided. */
+  text?: string;
+  /** Inline binary data for images/media. Mutually exclusive with text. */
+  inlineData?: {
+    /** MIME type of the data (e.g., 'image/jpeg', 'image/png') */
+    mimeType: string;
+    /** Base64-encoded data */
+    data: string;
+  };
   /** If true, this part contains thinking/reasoning content (not the actual response) */
   thought?: boolean;
   /** Signature present on content parts when thinking is enabled (indicates non-thinking content) */
