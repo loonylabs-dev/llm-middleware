@@ -60,7 +60,7 @@ jest.mock('google-auth-library', () => ({
 }));
 
 import { VertexAIProvider, VertexAIProviderConfig } from '../../../../../src/middleware/services/llm/providers/gemini/vertex-ai.provider';
-import { RegionRotationConfig } from '../../../../../src/middleware/services/llm/types/vertex-ai.types';
+import { RegionRotationConfig } from '../../../../../src/middleware/services/llm/types/common.types';
 
 /**
  * Creates a mock Axios error with given status.

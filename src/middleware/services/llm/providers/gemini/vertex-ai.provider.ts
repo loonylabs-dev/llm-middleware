@@ -14,8 +14,8 @@ import { GoogleAuth, JWT } from 'google-auth-library';
 import * as fs from 'fs';
 import * as path from 'path';
 import { logger } from '../../../../shared/utils/logging.utils';
-import { LLMProvider, CommonLLMResponse } from '../../types';
-import { RegionRotationConfig } from '../../types/vertex-ai.types';
+import { LLMProvider, CommonLLMResponse, RegionRotationConfig } from '../../types';
+import { isQuotaError } from '../../utils/retry.utils';
 import { MultimodalContent } from '../../types/multimodal.types';
 import { GeminiBaseProvider, GeminiProviderOptions } from './gemini-base.provider';
 
@@ -363,27 +363,6 @@ export class VertexAIProvider extends GeminiBaseProvider {
   }
 
   /**
-   * Check if an error is a quota/rate-limit error (429 / Resource Exhausted).
-   * Only these errors trigger region rotation.
-   */
-  private isQuotaError(error: any): boolean {
-    // Axios error with 429 status
-    if (error?.isAxiosError && error.response?.status === 429) {
-      return true;
-    }
-
-    // Check error message for Vertex AI quota patterns
-    const message = (error?.message || '').toLowerCase();
-    return (
-      message.includes('429') ||
-      message.includes('resource exhausted') ||
-      message.includes('quota exceeded') ||
-      message.includes('rate limit') ||
-      message.includes('too many requests')
-    );
-  }
-
-  /**
    * Override callWithSystemMessage to add region rotation on quota errors.
    * When regionRotation is configured, rotates through regions on 429 errors.
    * Without regionRotation config, delegates directly to base class (backwards compatible).
@@ -421,7 +400,7 @@ export class VertexAIProvider extends GeminiBaseProvider {
       region: rotation.regions[0] as string,
       _retryHooks: {
         onRetry: (error: any) => {
-          if (this.isQuotaError(error) && regionIndex < regionSequence.length - 1) {
+          if (isQuotaError(error) && regionIndex < regionSequence.length - 1) {
             regionIndex++;
             mutableOptions.region = regionSequence[regionIndex] as string;
             logger.info(`Quota error — rotating to region ${mutableOptions.region}`, {
@@ -443,7 +422,7 @@ export class VertexAIProvider extends GeminiBaseProvider {
     } catch (error) {
       // Bonus fallback attempt: after retry budget exhausted, one more try on fallback
       if (
-        this.isQuotaError(error) &&
+        isQuotaError(error) &&
         rotation.alwaysTryFallback !== false &&
         mutableOptions.region !== rotation.fallback
       ) {

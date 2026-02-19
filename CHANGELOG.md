@@ -1,3 +1,18 @@
+## [2.23.1] - 2026-02-19
+
+### 🔧 Refactoring: Provider-Agnostic Region Rotation Architecture
+
+**Internal refactoring — no API changes, no behavioral changes.**
+
+Moved region rotation building blocks from Vertex-AI-specific to provider-agnostic locations, enabling reuse by future providers:
+
+- **`RegionRotationConfig`** moved from `vertex-ai.types.ts` → `common.types.ts` with `string[]` instead of `VertexAIRegion[]`
+- **`isQuotaError()`** extracted from `VertexAIProvider` to `retry.utils.ts` as exported utility (alongside `isRetryableError`)
+- Added 11 unit tests for `isQuotaError()` in `retry.utils.test.ts`
+- All 403 tests pass, build clean
+
+---
+
 ## [2.23.0] - 2026-02-19
 
 ### ✨ New Feature: Vertex AI Region Rotation on Quota Errors
@@ -41,9 +56,10 @@ const response = await service.callWithSystemMessage(prompt, systemMsg, {
 #### New Types
 
 ```typescript
+// Provider-agnostic — lives in common.types.ts, usable by any provider
 interface RegionRotationConfig {
-  regions: VertexAIRegion[];      // Ordered list of regions to try
-  fallback: VertexAIRegion;       // Last-resort region (typically 'global')
+  regions: string[];              // Ordered list of regions to try
+  fallback: string;               // Last-resort region (typically 'global')
   alwaysTryFallback?: boolean;    // Bonus attempt on fallback (default: true)
 }
 
@@ -56,7 +72,7 @@ interface LLMServiceOptions {
 }
 ```
 
-### 🔧 Enhancement: Provider-Agnostic Retry Hooks
+### 🔧 Enhancement: Provider-Agnostic Retry Hooks & Quota Detection
 
 The retry system (`retryWithBackoff`) now supports an `onRetry` callback via the new `RetryHooks` interface. This is a **provider-agnostic** extension on `CommonLLMOptions` — any provider can use it, not just Vertex AI.
 
@@ -70,10 +86,13 @@ interface RetryHooks {
 }
 ```
 
+The new `isQuotaError()` utility in `retry.utils.ts` detects quota/rate-limit errors (429, "Resource Exhausted", etc.) and is available for any provider to use. Previously this logic was private to the Vertex AI provider.
+
 #### Other Changes
 
 - `CommonLLMResponse.metadata` now includes optional `region` field (Vertex AI)
 - Endpoint URL is re-evaluated on each retry attempt (enables dynamic endpoint changes between retries)
+- `RegionRotationConfig` and `isQuotaError()` are now provider-agnostic (moved from Vertex AI types to common types / retry utils)
 
 ---
 

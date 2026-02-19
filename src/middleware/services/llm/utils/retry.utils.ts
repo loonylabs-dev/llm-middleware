@@ -60,6 +60,28 @@ const RETRYABLE_ERROR_CODES = new Set([
 ]);
 
 /**
+ * Checks if an error is a quota/rate-limit error (429 / Resource Exhausted).
+ * Only these errors should trigger region rotation — server errors (500, 503)
+ * should retry on the same region.
+ */
+export function isQuotaError(error: any): boolean {
+  // Axios error with 429 status
+  if (error?.isAxiosError && error.response?.status === 429) {
+    return true;
+  }
+
+  // Check error message for common quota/rate-limit patterns
+  const message = (error?.message || '').toLowerCase();
+  return (
+    message.includes('429') ||
+    message.includes('resource exhausted') ||
+    message.includes('quota exceeded') ||
+    message.includes('rate limit') ||
+    message.includes('too many requests')
+  );
+}
+
+/**
  * Checks if an error is retryable based on HTTP status or network error code.
  */
 export function isRetryableError(error: any): boolean {
