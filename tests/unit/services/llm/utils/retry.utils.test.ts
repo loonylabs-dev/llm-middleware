@@ -287,4 +287,64 @@ describe('retryWithBackoff', () => {
       expect(error.response.status).toBe(503);
     }
   });
+
+  describe('onRetry hook', () => {
+    it('should call onRetry on each retryable error', async () => {
+      const onRetry = jest.fn();
+      const fn = jest.fn().mockRejectedValue(createAxiosError(429));
+
+      await expect(
+        retryWithBackoff(fn, 'test', { ...fastConfig, maxRetries: 3 }, { onRetry })
+      ).rejects.toThrow();
+
+      // 3 retries → 3 onRetry calls (attempts 1, 2, 3)
+      expect(onRetry).toHaveBeenCalledTimes(3);
+      expect(onRetry).toHaveBeenNthCalledWith(1, expect.any(Error), 1);
+      expect(onRetry).toHaveBeenNthCalledWith(2, expect.any(Error), 2);
+      expect(onRetry).toHaveBeenNthCalledWith(3, expect.any(Error), 3);
+    });
+
+    it('should NOT call onRetry for non-retryable errors', async () => {
+      const onRetry = jest.fn();
+      const fn = jest.fn().mockRejectedValue(createAxiosError(400));
+
+      await expect(
+        retryWithBackoff(fn, 'test', fastConfig, { onRetry })
+      ).rejects.toThrow();
+
+      expect(onRetry).not.toHaveBeenCalled();
+    });
+
+    it('should NOT call onRetry when budget is exhausted (last error throws directly)', async () => {
+      const onRetry = jest.fn();
+      const fn = jest.fn().mockRejectedValue(createAxiosError(429));
+
+      await expect(
+        retryWithBackoff(fn, 'test', { ...fastConfig, maxRetries: 2 }, { onRetry })
+      ).rejects.toThrow();
+
+      // 2 retries → 2 onRetry calls (NOT 3 — budget exhausted on 3rd failure)
+      expect(onRetry).toHaveBeenCalledTimes(2);
+    });
+
+    it('should work without onRetry (backwards compatible)', async () => {
+      const fn = jest.fn()
+        .mockRejectedValueOnce(createAxiosError(429))
+        .mockResolvedValue('success');
+
+      const result = await retryWithBackoff(fn, 'test', fastConfig);
+      expect(result).toBe('success');
+      expect(fn).toHaveBeenCalledTimes(2);
+    });
+
+    it('should work with undefined hooks parameter', async () => {
+      const fn = jest.fn()
+        .mockRejectedValueOnce(createAxiosError(429))
+        .mockResolvedValue('success');
+
+      const result = await retryWithBackoff(fn, 'test', fastConfig, undefined);
+      expect(result).toBe('success');
+      expect(fn).toHaveBeenCalledTimes(2);
+    });
+  });
 });

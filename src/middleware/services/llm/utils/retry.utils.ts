@@ -147,12 +147,19 @@ function sleep(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+/** Options for retryWithBackoff beyond the retry config. */
+export interface RetryHooks {
+  /** Called before each retry. Use to adjust state (e.g., rotate regions on quota errors). */
+  onRetry?: (error: any, attempt: number) => void;
+}
+
 /**
  * Executes an async function with exponential backoff retry on transient errors.
  *
  * @param fn - The async function to execute (typically an axios call)
  * @param context - Logging context (e.g. provider class name)
  * @param config - Retry configuration (merged with defaults)
+ * @param hooks - Optional hooks (e.g., onRetry for region rotation)
  * @returns The result of fn()
  * @throws The last error if all retries are exhausted
  *
@@ -168,7 +175,8 @@ function sleep(ms: number): Promise<void> {
 export async function retryWithBackoff<T>(
   fn: () => Promise<T>,
   context: string,
-  config?: RetryConfig
+  config?: RetryConfig,
+  hooks?: RetryHooks
 ): Promise<T> {
   const resolvedConfig: Required<RetryConfig> = {
     ...DEFAULT_RETRY_CONFIG,
@@ -190,6 +198,11 @@ export async function retryWithBackoff<T>(
       // Don't retry if not retryable or last attempt
       if (!isRetryableError(error) || attempt === resolvedConfig.maxRetries) {
         throw error;
+      }
+
+      // Notify consumer before retry (e.g., for region rotation on quota errors)
+      if (hooks?.onRetry) {
+        hooks.onRetry(error, attempt + 1);
       }
 
       const errorInfo = getErrorInfo(error);

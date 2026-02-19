@@ -14,7 +14,9 @@ import { GoogleAuth, JWT } from 'google-auth-library';
 import * as fs from 'fs';
 import * as path from 'path';
 import { logger } from '../../../../shared/utils/logging.utils';
-import { LLMProvider } from '../../types';
+import { LLMProvider, CommonLLMResponse } from '../../types';
+import { RegionRotationConfig } from '../../types/vertex-ai.types';
+import { MultimodalContent } from '../../types/multimodal.types';
 import { GeminiBaseProvider, GeminiProviderOptions } from './gemini-base.provider';
 
 /**
@@ -62,6 +64,14 @@ interface CachedToken {
 }
 
 /**
+ * Configuration for the VertexAI provider instance.
+ */
+export interface VertexAIProviderConfig {
+  /** Opt-in region rotation for quota errors (429 / Resource Exhausted). */
+  regionRotation?: RegionRotationConfig;
+}
+
+/**
  * Vertex AI provider with Service Account authentication.
  *
  * Environment variables:
@@ -78,12 +88,24 @@ interface CachedToken {
 export class VertexAIProvider extends GeminiBaseProvider {
   private tokenCache: CachedToken | null = null;
   private authClient: JWT | null = null;
+  private readonly regionRotationConfig: RegionRotationConfig | null;
 
   // Buffer time before token expiry to refresh (5 minutes)
   private readonly TOKEN_REFRESH_BUFFER_MS = 5 * 60 * 1000;
 
-  constructor() {
+  constructor(config?: VertexAIProviderConfig) {
     super(LLMProvider.VERTEX_AI);
+    this.regionRotationConfig = config?.regionRotation ?? null;
+
+    // Validate regionRotation config
+    if (this.regionRotationConfig) {
+      if (!this.regionRotationConfig.regions || this.regionRotationConfig.regions.length === 0) {
+        throw new Error('regionRotation.regions must contain at least one region');
+      }
+      if (!this.regionRotationConfig.fallback) {
+        throw new Error('regionRotation.fallback is required');
+      }
+    }
   }
 
   /**
@@ -341,6 +363,109 @@ export class VertexAIProvider extends GeminiBaseProvider {
   }
 
   /**
+   * Check if an error is a quota/rate-limit error (429 / Resource Exhausted).
+   * Only these errors trigger region rotation.
+   */
+  private isQuotaError(error: any): boolean {
+    // Axios error with 429 status
+    if (error?.isAxiosError && error.response?.status === 429) {
+      return true;
+    }
+
+    // Check error message for Vertex AI quota patterns
+    const message = (error?.message || '').toLowerCase();
+    return (
+      message.includes('429') ||
+      message.includes('resource exhausted') ||
+      message.includes('quota exceeded') ||
+      message.includes('rate limit') ||
+      message.includes('too many requests')
+    );
+  }
+
+  /**
+   * Override callWithSystemMessage to add region rotation on quota errors.
+   * When regionRotation is configured, rotates through regions on 429 errors.
+   * Without regionRotation config, delegates directly to base class (backwards compatible).
+   */
+  public async callWithSystemMessage(
+    userPrompt: MultimodalContent,
+    systemMessage: string,
+    options: GeminiProviderOptions = {}
+  ): Promise<CommonLLMResponse | null> {
+    // No rotation configured → use base implementation directly
+    if (!this.regionRotationConfig) {
+      return super.callWithSystemMessage(userPrompt, systemMessage, options);
+    }
+
+    const rotation = this.regionRotationConfig;
+    const model = options.model || this.getDefaultModel();
+
+    // Preview models use global endpoint → no rotation
+    if (this.isPreviewModel(model)) {
+      return super.callWithSystemMessage(userPrompt, systemMessage, options);
+    }
+
+    // Build region sequence: [...regions, fallback]
+    const regionSequence = [...rotation.regions, rotation.fallback];
+    let regionIndex = 0;
+
+    logger.info('Region rotation enabled for Vertex AI LLM call', {
+      context: 'VertexAIProvider',
+      metadata: { sequence: regionSequence, model }
+    });
+
+    // Mutable options object — onRetry mutates the region
+    const mutableOptions: GeminiProviderOptions = {
+      ...options,
+      region: rotation.regions[0] as string,
+      _retryHooks: {
+        onRetry: (error: any) => {
+          if (this.isQuotaError(error) && regionIndex < regionSequence.length - 1) {
+            regionIndex++;
+            mutableOptions.region = regionSequence[regionIndex] as string;
+            logger.info(`Quota error — rotating to region ${mutableOptions.region}`, {
+              context: 'VertexAIProvider',
+              metadata: {
+                regionIndex,
+                totalRegions: regionSequence.length,
+                region: mutableOptions.region
+              }
+            });
+          }
+          // Non-quota retryable errors (500, 503, timeout): stay on same region
+        }
+      }
+    };
+
+    try {
+      return await super.callWithSystemMessage(userPrompt, systemMessage, mutableOptions);
+    } catch (error) {
+      // Bonus fallback attempt: after retry budget exhausted, one more try on fallback
+      if (
+        this.isQuotaError(error) &&
+        rotation.alwaysTryFallback !== false &&
+        mutableOptions.region !== rotation.fallback
+      ) {
+        logger.info(`Retry budget exhausted — bonus attempt on fallback region ${rotation.fallback}`, {
+          context: 'VertexAIProvider',
+          metadata: {
+            exhaustedRegion: mutableOptions.region,
+            fallback: rotation.fallback
+          }
+        });
+
+        mutableOptions.region = rotation.fallback as string;
+        // Remove retry hooks and disable retries for the single bonus attempt
+        delete mutableOptions._retryHooks;
+        mutableOptions.retry = { ...mutableOptions.retry, maxRetries: 0 };
+        return await super.callWithSystemMessage(userPrompt, systemMessage, mutableOptions);
+      }
+      throw error;
+    }
+  }
+
+  /**
    * Clear the token cache (useful for testing or after errors).
    */
   public clearTokenCache(): void {
@@ -349,5 +474,5 @@ export class VertexAIProvider extends GeminiBaseProvider {
   }
 }
 
-// Export singleton instance
+// Default singleton instance (without region rotation, for backwards compatibility)
 export const vertexAIProvider = new VertexAIProvider();

@@ -8,22 +8,27 @@ import { OllamaProvider } from './providers/ollama-provider';
 import { AnthropicProvider } from './providers/anthropic-provider';
 import { GeminiProvider } from './providers/gemini-provider';
 import { RequestyProvider } from './providers/requesty-provider';
-import { VertexAIProvider } from './providers/gemini';
+import { VertexAIProvider, VertexAIProviderConfig } from './providers/gemini';
 import { LLMProvider, CommonLLMOptions, CommonLLMResponse } from './types';
 import { MultimodalContent } from './types/multimodal.types';
+
+export interface LLMServiceOptions {
+  /** Configuration for the Vertex AI provider (e.g., region rotation). */
+  vertexAIConfig?: VertexAIProviderConfig;
+}
 
 export class LLMService {
   private providers: Map<LLMProvider, BaseLLMProvider>;
   private defaultProvider: LLMProvider = LLMProvider.OLLAMA;
 
-  constructor() {
+  constructor(options?: LLMServiceOptions) {
     this.providers = new Map();
     // Initialize available providers
     this.providers.set(LLMProvider.OLLAMA, new OllamaProvider());
     this.providers.set(LLMProvider.ANTHROPIC, new AnthropicProvider());
     this.providers.set(LLMProvider.GOOGLE, new GeminiProvider());
     this.providers.set(LLMProvider.REQUESTY, new RequestyProvider());
-    this.providers.set(LLMProvider.VERTEX_AI, new VertexAIProvider());
+    this.providers.set(LLMProvider.VERTEX_AI, new VertexAIProvider(options?.vertexAIConfig));
   }
 
   /**

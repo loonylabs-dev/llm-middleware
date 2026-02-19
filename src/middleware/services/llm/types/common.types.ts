@@ -2,7 +2,7 @@
  * Common types shared across all LLM providers
  */
 
-import type { RetryConfig } from '../utils/retry.utils';
+import type { RetryConfig, RetryHooks } from '../utils/retry.utils';
 
 /**
  * Reasoning effort levels for models with thinking/reasoning capabilities.
@@ -72,9 +72,12 @@ export interface CommonLLMOptions {
    * Set `{ enabled: false }` to disable.
    */
   retry?: RetryConfig;
+
+  /** @internal Retry hooks (e.g., onRetry for region rotation). Not part of public API. */
+  _retryHooks?: RetryHooks;
 }
 
-export type { RetryConfig };
+export type { RetryConfig, RetryHooks };
 
 /**
  * Provider-agnostic token usage information
@@ -115,6 +118,8 @@ export interface CommonLLMResponse {
     model: string;
     tokensUsed?: number;
     processingTime?: number;
+    /** Which region served this request (Vertex AI only) */
+    region?: string;
   };
   /**
    * Standardized token usage information

@@ -59,6 +59,31 @@ export interface VertexAIRequestOptions extends GeminiRequestOptions {
 /**
  * Service account JSON structure (partial, key fields only).
  */
+/**
+ * Configuration for region rotation on quota errors (429 / Resource Exhausted).
+ *
+ * When Vertex AI returns a quota error, the middleware rotates through the
+ * configured regions instead of retrying the same region. This is useful
+ * when Dynamic Shared Quota is temporarily exhausted in a single region.
+ *
+ * The total retry budget (from RetryConfig.maxRetries) is shared across
+ * all regions — region rotation does NOT multiply the retry count.
+ */
+export interface RegionRotationConfig {
+  /** Ordered list of regions to try. First entry = primary region. */
+  regions: VertexAIRegion[];
+
+  /** Last-resort region after all regions exhausted (typically 'global'). */
+  fallback: VertexAIRegion;
+
+  /**
+   * If true: when maxRetries is exhausted before reaching the fallback,
+   * one final bonus attempt on the fallback region is made.
+   * @default true
+   */
+  alwaysTryFallback?: boolean;
+}
+
 export interface ServiceAccountCredentials {
   type: 'service_account';
   project_id: string;

@@ -270,6 +270,69 @@ console.log(`Cost per 1000 calls: ${(response.usage.cost in USD`);
 // Cost per 1000 calls: 0.002400 USD
 ```
 
+### Google Vertex AI Provider (v2.15+)
+
+CDPA/GDPR-compliant provider with EU data residency for Google Gemini models. Uses OAuth2 Service Account authentication instead of API keys.
+
+- **EU Data Residency**: Regional endpoints (e.g., `europe-west3` for Frankfurt)
+- **Service Account Auth**: OAuth2 Bearer Token from Google Cloud Service Account
+- **Reasoning Control**: Full support for Gemini 2.5 (`thinkingBudget`) and Gemini 3 (`thinkingLevel`)
+- **Region Rotation** (v2.23.0): Automatic rotation through EU regions on quota errors (429)
+- **Preview Models**: Automatically routed to global endpoint
+
+**Usage:**
+
+```typescript
+import { LLMService, LLMProvider } from '@loonylabs/llm-middleware';
+
+// Basic usage (no region rotation)
+const service = new LLMService();
+const response = await service.callWithSystemMessage(
+  "Explain GDPR compliance",
+  "You are a legal expert.",
+  {
+    provider: LLMProvider.VERTEX_AI,
+    model: 'gemini-2.5-flash',
+    reasoningEffort: 'medium'
+  }
+);
+
+// With region rotation on quota errors (v2.23.0)
+const serviceWithRotation = new LLMService({
+  vertexAIConfig: {
+    regionRotation: {
+      regions: ['europe-west3', 'europe-west1', 'europe-west4', 'europe-north1'],
+      fallback: 'global',
+      alwaysTryFallback: true
+    }
+  }
+});
+```
+
+**Region Rotation (v2.23.0):**
+
+When Vertex AI returns a 429 quota error, the middleware automatically rotates through configured regions instead of retrying the same exhausted region.
+
+- Retry budget is shared across all regions (not multiplied)
+- Only quota errors (429, "Resource Exhausted") trigger rotation; server errors (500, 503) retry the same region
+- After retry budget is exhausted, one bonus attempt on the fallback region
+- Preview models (e.g., `gemini-3-flash-preview`) skip rotation — they always use global
+
+**Configuration:**
+
+```env
+GOOGLE_CLOUD_PROJECT=your_project_id             # Google Cloud Project ID (required)
+VERTEX_AI_REGION=europe-west3                     # Default region (Frankfurt)
+VERTEX_AI_MODEL=gemini-2.5-flash                  # Default model
+GOOGLE_APPLICATION_CREDENTIALS=./service-account.json  # Service Account JSON path
+```
+
+**Credential Sources** (checked in order):
+1. `serviceAccountKey` option (direct JSON object)
+2. `serviceAccountKeyPath` option (file path)
+3. `GOOGLE_APPLICATION_CREDENTIALS` env var (standard Google Cloud)
+4. `VERTEX_AI_SERVICE_ACCOUNT_KEY` env var (JSON string)
+
 ### OpenAI (Coming in v2.2)
 
 Planned support for:
@@ -278,7 +341,7 @@ Planned support for:
 - Function calling
 - Vision capabilities
 
-### Google (Coming in v2.2)
+### Google Gemini Direct (Coming in v2.2)
 
 Planned support for:
 - Gemini models
