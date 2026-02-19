@@ -43,6 +43,29 @@ export class LLMService {
   }
 
   /**
+   * Register or replace a provider instance.
+   * Use this to reconfigure a provider at runtime (e.g., add region rotation
+   * to VertexAI after loading config from database).
+   *
+   * @param provider - The provider type to register
+   * @param instance - The provider instance to use
+   *
+   * @example
+   * ```typescript
+   * import { llmService, VertexAIProvider, LLMProvider } from '@loonylabs/llm-middleware';
+   *
+   * // Replace default Vertex AI provider with region-rotation-enabled one
+   * llmService.registerProvider(
+   *   LLMProvider.VERTEX_AI,
+   *   new VertexAIProvider({ regionRotation: { regions: [...], fallback: 'global' } })
+   * );
+   * ```
+   */
+  public registerProvider(provider: LLMProvider, instance: BaseLLMProvider): void {
+    this.providers.set(provider, instance);
+  }
+
+  /**
    * Set the default provider for all requests
    */
   public setDefaultProvider(provider: LLMProvider): void {
