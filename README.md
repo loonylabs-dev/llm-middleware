@@ -52,6 +52,8 @@
   - 🔒 No base64 blobs in logs — images logged as `[IMAGE: image/png, 1.4MB]`
 - 🔄 **Automatic Retry**: Exponential backoff with jitter for transient errors (429, 5xx, timeouts)
   - ✨ **v2.19.0**: Configurable per-request via `retry` option, enabled by default
+  - 🔌 **v2.23.0**: Provider-agnostic `onRetry` hook for custom retry behavior (e.g., region rotation)
+  - 🌍 **v2.23.0**: Vertex AI region rotation — rotates through EU regions on 429 quota errors
 - 🧠 **Reasoning Control**: Control model thinking effort via `reasoningEffort` parameter
   - ✨ **v2.14.0**: Supports Gemini 2.5 (`thinkingBudget`) and Gemini 3 (`thinkingLevel`)
   - 📊 Track reasoning tokens separately for cost analysis

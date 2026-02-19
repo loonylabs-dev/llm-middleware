@@ -23,6 +23,7 @@ export {
 export {
   VertexAIProvider,
   VertexAIProviderOptions,
+  VertexAIProviderConfig,
   VertexAIRegion,
   vertexAIProvider
 } from './vertex-ai.provider';

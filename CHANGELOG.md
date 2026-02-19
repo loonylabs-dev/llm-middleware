@@ -1,3 +1,101 @@
+## [2.23.1] - 2026-02-19
+
+### 🔧 Refactoring: Provider-Agnostic Region Rotation Architecture
+
+**Internal refactoring — no API changes, no behavioral changes.**
+
+Moved region rotation building blocks from Vertex-AI-specific to provider-agnostic locations, enabling reuse by future providers:
+
+- **`RegionRotationConfig`** moved from `vertex-ai.types.ts` → `common.types.ts` with `string[]` instead of `VertexAIRegion[]`
+- **`isQuotaError()`** extracted from `VertexAIProvider` to `retry.utils.ts` as exported utility (alongside `isRetryableError`)
+- Added 11 unit tests for `isQuotaError()` in `retry.utils.test.ts`
+- All 403 tests pass, build clean
+
+---
+
+## [2.23.0] - 2026-02-19
+
+### ✨ New Feature: Vertex AI Region Rotation on Quota Errors
+
+**Opt-in region rotation for Vertex AI — automatically rotate through EU regions when quota is exhausted (429 / Resource Exhausted).**
+
+When Vertex AI returns a quota error, the middleware now rotates through configured regions instead of retrying the same exhausted region. This mirrors the production-proven pattern from `@loonylabs/tti-middleware`.
+
+#### Usage
+
+```typescript
+import { LLMService, LLMProvider } from '@loonylabs/llm-middleware';
+
+// Configure region rotation (typically from database config)
+const service = new LLMService({
+  vertexAIConfig: {
+    regionRotation: {
+      regions: ['europe-west3', 'europe-west1', 'europe-west4', 'europe-north1'],
+      fallback: 'global',
+      alwaysTryFallback: true  // Bonus attempt on fallback after budget exhausted
+    }
+  }
+});
+
+// All Vertex AI calls automatically get region rotation on quota errors
+const response = await service.callWithSystemMessage(prompt, systemMsg, {
+  provider: LLMProvider.VERTEX_AI,
+  model: 'gemini-2.5-flash',
+  retry: { maxRetries: 5 }
+});
+```
+
+#### How It Works
+
+- **Shared retry budget:** `maxRetries` is shared across all regions (not multiplied). 3 regions + 5 retries = 6 total attempts.
+- **Only quota errors rotate:** 429, "Resource Exhausted", "Quota exceeded", "Rate limit" → rotate region. 500, 503, timeouts → stay on same region, normal retry.
+- **Bonus fallback:** After retry budget is exhausted, one additional attempt on the fallback region (configurable via `alwaysTryFallback`).
+- **Preview models skip rotation:** Models with `-preview` suffix always use the global endpoint.
+- **Backwards compatible:** Without `regionRotation` config, behavior is identical to v2.22.0.
+
+#### New Types
+
+```typescript
+// Provider-agnostic — lives in common.types.ts, usable by any provider
+interface RegionRotationConfig {
+  regions: string[];              // Ordered list of regions to try
+  fallback: string;               // Last-resort region (typically 'global')
+  alwaysTryFallback?: boolean;    // Bonus attempt on fallback (default: true)
+}
+
+interface VertexAIProviderConfig {
+  regionRotation?: RegionRotationConfig;
+}
+
+interface LLMServiceOptions {
+  vertexAIConfig?: VertexAIProviderConfig;
+}
+```
+
+### 🔧 Enhancement: Provider-Agnostic Retry Hooks & Quota Detection
+
+The retry system (`retryWithBackoff`) now supports an `onRetry` callback via the new `RetryHooks` interface. This is a **provider-agnostic** extension on `CommonLLMOptions` — any provider can use it, not just Vertex AI.
+
+Region rotation is the first consumer of this hook. Future use cases could include per-provider metrics, circuit breakers, or dynamic endpoint switching for any provider.
+
+```typescript
+// RetryHooks is available on CommonLLMOptions (all providers)
+interface RetryHooks {
+  /** Called before each retry attempt. Use to adjust state between retries. */
+  onRetry?: (error: any, attempt: number) => void;
+}
+```
+
+The new `isQuotaError()` utility in `retry.utils.ts` detects quota/rate-limit errors (429, "Resource Exhausted", etc.) and is available for any provider to use. Previously this logic was private to the Vertex AI provider.
+
+#### Other Changes
+
+- `CommonLLMResponse.metadata` now includes optional `region` field (Vertex AI)
+- Endpoint URL is re-evaluated on each retry attempt (enables dynamic endpoint changes between retries)
+- `RegionRotationConfig` and `isQuotaError()` are now provider-agnostic (moved from Vertex AI types to common types / retry utils)
+
+---
+
 ## [2.22.0] - 2026-02-14
 
 ### ✨ New Feature: Vision / Multimodal Input

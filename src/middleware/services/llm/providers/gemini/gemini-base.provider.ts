@@ -352,9 +352,6 @@ export abstract class GeminiBaseProvider extends BaseLLMProvider {
     // Build request payload
     const requestPayload = this.buildRequestPayload(userPrompt, systemMessage, generationConfig);
 
-    // Get endpoint URL
-    const endpoint = this.getEndpointUrl(model, options);
-
     // Get client request body from global scope
     let clientRequestBody: any = undefined;
     try {
@@ -431,28 +428,34 @@ export abstract class GeminiBaseProvider extends BaseLLMProvider {
       logger.info(`Sending request to ${this.providerName} API`, {
         context: this.constructor.name,
         metadata: {
-          url: endpoint,
+          url: this.getEndpointUrl(model, options),
           model,
           promptLength: contentLength(userPrompt),
           maxOutputTokens: generationConfig.maxOutputTokens
         }
       });
 
+      // Endpoint is computed inside the lambda so region changes between retries
+      // (e.g., via _retryHooks.onRetry) take effect on the next attempt.
       const response = await retryWithBackoff(
-        () => axios.post<GeminiAPIResponse>(
-          endpoint,
-          requestPayload,
-          {
-            ...authConfig,
-            headers: {
-              'Content-Type': 'application/json',
-              ...authConfig.headers
-            },
-            timeout: 180000 // 180 second timeout
-          }
-        ),
+        () => {
+          const endpoint = this.getEndpointUrl(model, options);
+          return axios.post<GeminiAPIResponse>(
+            endpoint,
+            requestPayload,
+            {
+              ...authConfig,
+              headers: {
+                'Content-Type': 'application/json',
+                ...authConfig.headers
+              },
+              timeout: 180000 // 180 second timeout
+            }
+          );
+        },
         this.constructor.name,
-        options.retry
+        options.retry,
+        options._retryHooks
       );
 
       const requestDuration = Date.now() - requestStartTime;

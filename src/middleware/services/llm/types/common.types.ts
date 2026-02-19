@@ -2,7 +2,7 @@
  * Common types shared across all LLM providers
  */
 
-import type { RetryConfig } from '../utils/retry.utils';
+import type { RetryConfig, RetryHooks } from '../utils/retry.utils';
 
 /**
  * Reasoning effort levels for models with thinking/reasoning capabilities.
@@ -72,9 +72,40 @@ export interface CommonLLMOptions {
    * Set `{ enabled: false }` to disable.
    */
   retry?: RetryConfig;
+
+  /** @internal Retry hooks (e.g., onRetry for region rotation). Not part of public API. */
+  _retryHooks?: RetryHooks;
 }
 
-export type { RetryConfig };
+export type { RetryConfig, RetryHooks };
+
+/**
+ * Configuration for region rotation on quota errors (429 / Resource Exhausted).
+ *
+ * When a provider returns a quota error, the middleware rotates through the
+ * configured regions instead of retrying the same region. This is useful
+ * when Dynamic Shared Quota is temporarily exhausted in a single region.
+ *
+ * The total retry budget (from RetryConfig.maxRetries) is shared across
+ * all regions — region rotation does NOT multiply the retry count.
+ *
+ * Provider-agnostic: regions are plain strings. The consuming provider
+ * is responsible for using valid region identifiers.
+ */
+export interface RegionRotationConfig {
+  /** Ordered list of regions to try. First entry = primary region. */
+  regions: string[];
+
+  /** Last-resort region after all regions exhausted (typically 'global'). */
+  fallback: string;
+
+  /**
+   * If true: when maxRetries is exhausted before reaching the fallback,
+   * one final bonus attempt on the fallback region is made.
+   * @default true
+   */
+  alwaysTryFallback?: boolean;
+}
 
 /**
  * Provider-agnostic token usage information
@@ -115,6 +146,8 @@ export interface CommonLLMResponse {
     model: string;
     tokensUsed?: number;
     processingTime?: number;
+    /** Which region served this request (Vertex AI only) */
+    region?: string;
   };
   /**
    * Standardized token usage information

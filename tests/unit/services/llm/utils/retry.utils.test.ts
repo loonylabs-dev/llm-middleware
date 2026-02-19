@@ -1,6 +1,7 @@
 import {
   retryWithBackoff,
   isRetryableError,
+  isQuotaError,
   calculateDelay,
   DEFAULT_RETRY_CONFIG,
   RetryConfig,
@@ -80,6 +81,58 @@ describe('isRetryableError', () => {
   it('should return false for null/undefined', () => {
     expect(isRetryableError(null)).toBe(false);
     expect(isRetryableError(undefined)).toBe(false);
+  });
+});
+
+describe('isQuotaError', () => {
+  it('should return true for 429 axios error', () => {
+    expect(isQuotaError(createAxiosError(429))).toBe(true);
+  });
+
+  it('should return false for 500 server error', () => {
+    expect(isQuotaError(createAxiosError(500))).toBe(false);
+  });
+
+  it('should return false for 503 server error', () => {
+    expect(isQuotaError(createAxiosError(503))).toBe(false);
+  });
+
+  it('should return false for 400 client error', () => {
+    expect(isQuotaError(createAxiosError(400))).toBe(false);
+  });
+
+  it('should detect "resource exhausted" in error message', () => {
+    const error = new Error('Resource Exhausted');
+    expect(isQuotaError(error)).toBe(true);
+  });
+
+  it('should detect "quota exceeded" in error message', () => {
+    const error = new Error('Quota exceeded for quota metric');
+    expect(isQuotaError(error)).toBe(true);
+  });
+
+  it('should detect "rate limit" in error message', () => {
+    const error = new Error('Rate limit exceeded');
+    expect(isQuotaError(error)).toBe(true);
+  });
+
+  it('should detect "too many requests" in error message', () => {
+    const error = new Error('Too many requests');
+    expect(isQuotaError(error)).toBe(true);
+  });
+
+  it('should detect "429" in error message (non-axios)', () => {
+    const error = new Error('HTTP 429: Too many requests');
+    expect(isQuotaError(error)).toBe(true);
+  });
+
+  it('should return false for non-quota errors', () => {
+    expect(isQuotaError(new Error('some random error'))).toBe(false);
+  });
+
+  it('should return false for null/undefined', () => {
+    expect(isQuotaError(null)).toBe(false);
+    expect(isQuotaError(undefined)).toBe(false);
   });
 });
 
@@ -286,5 +339,65 @@ describe('retryWithBackoff', () => {
       expect(error).toBe(originalError);
       expect(error.response.status).toBe(503);
     }
+  });
+
+  describe('onRetry hook', () => {
+    it('should call onRetry on each retryable error', async () => {
+      const onRetry = jest.fn();
+      const fn = jest.fn().mockRejectedValue(createAxiosError(429));
+
+      await expect(
+        retryWithBackoff(fn, 'test', { ...fastConfig, maxRetries: 3 }, { onRetry })
+      ).rejects.toThrow();
+
+      // 3 retries → 3 onRetry calls (attempts 1, 2, 3)
+      expect(onRetry).toHaveBeenCalledTimes(3);
+      expect(onRetry).toHaveBeenNthCalledWith(1, expect.any(Error), 1);
+      expect(onRetry).toHaveBeenNthCalledWith(2, expect.any(Error), 2);
+      expect(onRetry).toHaveBeenNthCalledWith(3, expect.any(Error), 3);
+    });
+
+    it('should NOT call onRetry for non-retryable errors', async () => {
+      const onRetry = jest.fn();
+      const fn = jest.fn().mockRejectedValue(createAxiosError(400));
+
+      await expect(
+        retryWithBackoff(fn, 'test', fastConfig, { onRetry })
+      ).rejects.toThrow();
+
+      expect(onRetry).not.toHaveBeenCalled();
+    });
+
+    it('should NOT call onRetry when budget is exhausted (last error throws directly)', async () => {
+      const onRetry = jest.fn();
+      const fn = jest.fn().mockRejectedValue(createAxiosError(429));
+
+      await expect(
+        retryWithBackoff(fn, 'test', { ...fastConfig, maxRetries: 2 }, { onRetry })
+      ).rejects.toThrow();
+
+      // 2 retries → 2 onRetry calls (NOT 3 — budget exhausted on 3rd failure)
+      expect(onRetry).toHaveBeenCalledTimes(2);
+    });
+
+    it('should work without onRetry (backwards compatible)', async () => {
+      const fn = jest.fn()
+        .mockRejectedValueOnce(createAxiosError(429))
+        .mockResolvedValue('success');
+
+      const result = await retryWithBackoff(fn, 'test', fastConfig);
+      expect(result).toBe('success');
+      expect(fn).toHaveBeenCalledTimes(2);
+    });
+
+    it('should work with undefined hooks parameter', async () => {
+      const fn = jest.fn()
+        .mockRejectedValueOnce(createAxiosError(429))
+        .mockResolvedValue('success');
+
+      const result = await retryWithBackoff(fn, 'test', fastConfig, undefined);
+      expect(result).toBe('success');
+      expect(fn).toHaveBeenCalledTimes(2);
+    });
   });
 });
