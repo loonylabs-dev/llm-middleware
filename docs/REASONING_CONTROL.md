@@ -16,7 +16,8 @@ Google changed the reasoning API between Gemini 2.5 and Gemini 3:
 |---------|---------------|------------------|
 | **Gemini 2.5** | `thinking_budget` | Integer (0-24576), `-1` for auto |
 | **Gemini 3 Flash** | `thinking_level` | `MINIMAL`, `LOW`, `MEDIUM`, `HIGH` |
-| **Gemini 3 Pro** | `thinking_level` | `LOW`, `HIGH` only |
+| **Gemini 3.0 Pro** | `thinking_level` | `LOW`, `HIGH` only |
+| **Gemini 3.1 Pro** | `thinking_level` | `LOW`, `MEDIUM`, `HIGH` (no `MINIMAL`) |
 
 **Provider Support:**
 - ✅ **Vertex AI**: Both APIs supported (recommended for EU/CDPA compliance)
@@ -117,14 +118,16 @@ The `reasoningEffort` maps to `thinkingConfig.thinkingBudget`:
 
 The `reasoningEffort` maps to `thinkingConfig.thinkingLevel`:
 
-| reasoningEffort | thinking_level | Gemini 3 Flash | Gemini 3 Pro |
-|-----------------|----------------|----------------|--------------|
-| `none` | `MINIMAL` | ✅ ~0 tokens | ❌ → LOW |
-| `low` | `LOW` | ✅ ~0 tokens | ✅ |
-| `medium` | `MEDIUM` | ✅ ~1400 tokens | ❌ → LOW |
-| `high` | `HIGH` | ✅ ~2000 tokens | ✅ |
+| reasoningEffort | thinking_level | Gemini 3 Flash | Gemini 3.0 Pro | Gemini 3.1 Pro |
+|-----------------|----------------|----------------|----------------|----------------|
+| `none` | `MINIMAL` | ✅ ~0 tokens | ❌ → LOW | ❌ → LOW |
+| `low` | `LOW` | ✅ ~0 tokens | ✅ | ✅ |
+| `medium` | `MEDIUM` | ✅ ~1400 tokens | ❌ → LOW | ✅ |
+| `high` | `HIGH` | ✅ ~2000 tokens | ✅ | ✅ |
 
 **Note:** Gemini 3 cannot fully disable thinking - `none` maps to `MINIMAL` (Flash) or `LOW` (Pro).
+
+**Automatic fallback (v2.24.0+):** Unsupported thinking levels are automatically clamped to the nearest supported level. A warning is logged when a fallback occurs.
 
 ### Anthropic Claude
 

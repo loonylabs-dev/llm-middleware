@@ -56,6 +56,7 @@
   - 🌍 **v2.23.0**: Vertex AI region rotation — rotates through EU regions on 429 quota errors
 - 🧠 **Reasoning Control**: Control model thinking effort via `reasoningEffort` parameter
   - ✨ **v2.14.0**: Supports Gemini 2.5 (`thinkingBudget`) and Gemini 3 (`thinkingLevel`)
+  - 🛡️ **v2.24.0**: Model-aware clamping — auto-fallback for unsupported levels (e.g., Gemini 3 Pro)
   - 📊 Track reasoning tokens separately for cost analysis
 - 🧹 **JSON Cleaning**: Recipe-based JSON repair system with automatic strategy selection
   - ✨ **v2.4.0**: Enhanced array extraction support - properly handles JSON arrays `[...]` in addition to objects `{...}`
