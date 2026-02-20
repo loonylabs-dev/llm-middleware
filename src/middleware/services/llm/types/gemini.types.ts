@@ -21,10 +21,11 @@ export type GeminiThinkingLevel = 'THINKING_LEVEL_UNSPECIFIED' | 'MINIMAL' | 'LO
 export interface GeminiThinkingConfig {
   /**
    * Thinking level for Gemini 3.x models.
-   * - MINIMAL: Minimum thinking (Gemini 3 Flash only)
-   * - LOW: Light reasoning for simple tasks
-   * - MEDIUM: Balanced reasoning (Gemini 3 Flash only)
-   * - HIGH: Deep reasoning (default for complex tasks)
+   * Not all levels are supported by all models — use clampThinkingLevelForModel() for safe mapping.
+   * - MINIMAL: Minimum thinking (Flash only, not supported by any Pro model)
+   * - LOW: Light reasoning (all models)
+   * - MEDIUM: Balanced reasoning (Flash + Gemini 3.1+ Pro, NOT Gemini 3.0 Pro)
+   * - HIGH: Deep reasoning, default (all models)
    */
   thinkingLevel?: GeminiThinkingLevel;
 

@@ -10,7 +10,10 @@ export {
   GeminiGeneration,
   detectGeminiGeneration,
   mapReasoningEffortToThinkingLevel,
-  mapReasoningEffortToThinkingBudget
+  mapReasoningEffortToThinkingBudget,
+  isGeminiPro,
+  detectGemini3SubVersion,
+  clampThinkingLevelForModel
 } from './gemini-base.provider';
 
 // Direct API provider (API Key auth)

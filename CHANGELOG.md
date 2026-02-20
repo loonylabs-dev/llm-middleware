@@ -1,3 +1,34 @@
+## [2.24.0] - 2026-02-20
+
+### ✨ New Feature: Model-Aware ThinkingLevel Clamping for Gemini 3 Pro
+
+**Automatic fallback for unsupported `thinkingLevel` values — prevents 400 errors on Gemini Pro models.**
+
+Not all Gemini 3.x models support the same thinking levels. Previously, sending `MINIMAL` or `MEDIUM` to Gemini 3 Pro caused a `400 Bad Request`. The middleware now automatically clamps unsupported levels to the nearest supported value and logs a warning.
+
+#### Supported Levels per Model
+
+| Thinking Level | Gemini 3 Flash | Gemini 3.0 Pro | Gemini 3.1 Pro |
+|---|---|---|---|
+| `MINIMAL` | ✅ | ❌ → `LOW` | ❌ → `LOW` |
+| `LOW` | ✅ | ✅ | ✅ |
+| `MEDIUM` | ✅ | ❌ → `LOW` | ✅ |
+| `HIGH` | ✅ | ✅ | ✅ |
+
+#### New Exports
+
+- `clampThinkingLevelForModel(level, model)` — applies model-specific fallback
+- `isGeminiPro(model)` — detects Pro variants
+- `detectGemini3SubVersion(model)` — distinguishes `'3'` vs `'3.1'` etc.
+
+#### What Changed
+
+- `buildGenerationConfig()` now applies `clampThinkingLevelForModel()` after mapping `reasoningEffort` to `thinkingLevel`
+- A `logger.warn()` is emitted when a fallback occurs, including the requested and actual level
+- No breaking changes — Flash models continue to receive all levels as before
+
+---
+
 ## [2.23.1] - 2026-02-19
 
 ### 🔧 Refactoring: Provider-Agnostic Region Rotation Architecture

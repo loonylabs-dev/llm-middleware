@@ -49,6 +49,8 @@ export function detectGeminiGeneration(model: string): GeminiGeneration | undefi
 
 /**
  * Maps provider-agnostic ReasoningEffort to Gemini 3.x thinking_level.
+ * This returns the "ideal" level without model-specific constraints.
+ * Use clampThinkingLevelForModel() afterwards to apply model-specific fallbacks.
  */
 export function mapReasoningEffortToThinkingLevel(effort: ReasoningEffort): GeminiThinkingLevel {
   switch (effort) {
@@ -63,6 +65,56 @@ export function mapReasoningEffortToThinkingLevel(effort: ReasoningEffort): Gemi
     default:
       return 'MEDIUM';  // Safe default
   }
+}
+
+/**
+ * Detects if a model is a Gemini Pro variant.
+ * Matches: gemini-3-pro, gemini-3-pro-preview, gemini-3.1-pro, etc.
+ */
+export function isGeminiPro(model: string): boolean {
+  return model.toLowerCase().includes('pro');
+}
+
+/**
+ * Detects the Gemini 3.x sub-version from model name.
+ * Returns '3' for gemini-3-*, '3.1' for gemini-3.1-*, etc.
+ * Returns undefined if not a Gemini 3.x model.
+ *
+ * @example
+ *   detectGemini3SubVersion('gemini-3-pro-preview')   → '3'
+ *   detectGemini3SubVersion('gemini-3-flash-preview')  → '3'
+ *   detectGemini3SubVersion('gemini-3.1-pro')          → '3.1'
+ *   detectGemini3SubVersion('gemini-2.5-flash')        → undefined
+ */
+export function detectGemini3SubVersion(model: string): string | undefined {
+  const lower = model.toLowerCase();
+  // Match gemini-3, gemini-3.0, gemini-3.1, etc.
+  const match = lower.match(/gemini-(3(?:\.\d+)?)/);
+  return match?.[1];
+}
+
+/**
+ * Clamps a thinkingLevel to the levels actually supported by the given model.
+ *
+ * Supported levels per model:
+ * - Gemini 3 Flash:   MINIMAL, LOW, MEDIUM, HIGH (all)
+ * - Gemini 3.0 Pro:   LOW, HIGH only
+ * - Gemini 3.1+ Pro:  LOW, MEDIUM, HIGH (no MINIMAL)
+ *
+ * @returns The clamped level (may be identical to input if already supported)
+ */
+export function clampThinkingLevelForModel(level: GeminiThinkingLevel, model: string): GeminiThinkingLevel {
+  if (!isGeminiPro(model)) return level; // Flash models: all levels supported
+
+  // All Pro models: MINIMAL is never supported → fall back to LOW
+  if (level === 'MINIMAL') return 'LOW';
+
+  // Gemini 3.0 Pro: MEDIUM is not supported → fall back to LOW
+  // (Gemini 3.1+ Pro supports MEDIUM)
+  const subVersion = detectGemini3SubVersion(model);
+  if (level === 'MEDIUM' && subVersion === '3') return 'LOW';
+
+  return level;
 }
 
 /**
@@ -167,13 +219,24 @@ export abstract class GeminiBaseProvider extends BaseLLMProvider {
 
       if (generation === '3') {
         // Gemini 3.x uses thinkingLevel
+        const rawLevel = mapReasoningEffortToThinkingLevel(reasoningEffort!);
+        const thinkingLevel = clampThinkingLevelForModel(rawLevel, model);
+
+        if (thinkingLevel !== rawLevel) {
+          logger.warn(
+            `ThinkingLevel ${rawLevel} not supported by ${model}, falling back to ${thinkingLevel}`,
+            {
+              context: 'GeminiBaseProvider',
+              metadata: { model, requested: rawLevel, actual: thinkingLevel }
+            }
+          );
+        }
+
         if (reasoningEffort === 'none') {
-          config.thinkingConfig = {
-            thinkingLevel: 'MINIMAL'  // Gemini 3 cannot fully disable, use MINIMAL
-          };
+          config.thinkingConfig = { thinkingLevel };
         } else {
           config.thinkingConfig = {
-            thinkingLevel: mapReasoningEffortToThinkingLevel(reasoningEffort),
+            thinkingLevel,
             includeThoughts: true
           };
         }

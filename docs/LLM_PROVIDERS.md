@@ -276,7 +276,7 @@ CDPA/GDPR-compliant provider with EU data residency for Google Gemini models. Us
 
 - **EU Data Residency**: Regional endpoints (e.g., `europe-west3` for Frankfurt)
 - **Service Account Auth**: OAuth2 Bearer Token from Google Cloud Service Account
-- **Reasoning Control**: Full support for Gemini 2.5 (`thinkingBudget`) and Gemini 3 (`thinkingLevel`)
+- **Reasoning Control**: Full support for Gemini 2.5 (`thinkingBudget`) and Gemini 3 (`thinkingLevel`) with model-aware clamping (v2.24.0) — auto-fallback for unsupported levels on Pro models
 - **Region Rotation** (v2.23.0): Automatic rotation through EU regions on quota errors (429) — uses provider-agnostic `RegionRotationConfig` and `isQuotaError()` utility
 - **Preview Models**: Automatically routed to global endpoint
 
