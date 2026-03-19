@@ -265,13 +265,14 @@ export abstract class BaseAIUseCase<
       success = true;
 
       // Extract actual token counts from provider response if available
-      let actualTokens: { inputTokens?: number; outputTokens?: number } | undefined;
+      let actualTokens: { inputTokens?: number; outputTokens?: number; reasoningTokens?: number } | undefined;
 
       if (result.usage) {
         // Use standardized usage field (provider-agnostic)
         actualTokens = {
           inputTokens: result.usage.inputTokens,
-          outputTokens: result.usage.outputTokens
+          outputTokens: result.usage.outputTokens,
+          reasoningTokens: result.usage.reasoningTokens
         };
       }
 

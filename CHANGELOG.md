@@ -1,3 +1,22 @@
+## [2.25.0] - 2026-03-20
+
+### fix(metrics): include reasoning tokens in speed calculation
+
+Reasoning tokens (e.g. Gemini `thoughtsTokenCount`) were not counted when calculating `tokens/sec`, causing the reported speed to appear much lower than actual model throughput. They also weren't forwarded from `BaseAIUseCase` to the metrics logger.
+
+#### What Changed
+
+- `base-ai.usecase.ts`: `reasoningTokens` is now included when assembling `actualTokens` from `result.usage`
+- `use-case-metrics-logger.service.ts`:
+  - `UseCaseMetrics` interface gains `reasoningTokenCount: number`
+  - Speed calculation now uses `outputTokenCount + reasoningTokenCount`
+  - Log message shows `Reasoning tokens: N` when `> 0`
+- `calculateMetrics()` accepts `reasoningTokens` in the `actualTokens` parameter
+
+No breaking changes — `reasoningTokenCount` defaults to `0` when not present.
+
+---
+
 ## [2.24.0] - 2026-02-20
 
 ### ✨ New Feature: Model-Aware ThinkingLevel Clamping for Gemini 3 Pro

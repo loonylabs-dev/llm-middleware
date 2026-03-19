@@ -8,6 +8,7 @@ export interface UseCaseMetrics {
   executionTimeSeconds: number;
   inputTokenCount: number;
   outputTokenCount: number;
+  reasoningTokenCount: number;
   tokensPerSecond: string;
   success: boolean;
   errorMessage?: string;
@@ -89,7 +90,8 @@ export class UseCaseMetricsLoggerService {
     const errorInfo = metrics.errorMessage ? ` Error: ${metrics.errorMessage}` : '';
     const executionTimeFormatted = metrics.executionTimeSeconds.toFixed(2);
 
-    const logMessage = `Completed AI use case [${useCaseName} = ${metrics.modelName}] ${statusInfo} - Time: ${executionTimeFormatted}s, Input tokens: ${metrics.inputTokenCount}, Output tokens: ${metrics.outputTokenCount}, Speed: ${metrics.tokensPerSecond} tokens/sec${errorInfo}`;
+    const reasoningInfo = metrics.reasoningTokenCount > 0 ? `, Reasoning tokens: ${metrics.reasoningTokenCount}` : '';
+    const logMessage = `Completed AI use case [${useCaseName} = ${metrics.modelName}] ${statusInfo} - Time: ${executionTimeFormatted}s, Input tokens: ${metrics.inputTokenCount}, Output tokens: ${metrics.outputTokenCount}${reasoningInfo}, Speed: ${metrics.tokensPerSecond} tokens/sec${errorInfo}`;
 
     if (metrics.success) {
       logger.info(logMessage, {
@@ -146,6 +148,7 @@ export class UseCaseMetricsLoggerService {
     actualTokens?: {
       inputTokens?: number;
       outputTokens?: number;
+      reasoningTokens?: number;
     }
   ): UseCaseMetrics {
     const executionTimeSeconds = (Date.now() - startTime) / 1000;
@@ -153,11 +156,13 @@ export class UseCaseMetricsLoggerService {
     // Use actual token counts from provider if available, otherwise estimate
     let inputTokenCount: number;
     let outputTokenCount: number;
+    let reasoningTokenCount: number;
 
     if (actualTokens?.inputTokens !== undefined && actualTokens?.outputTokens !== undefined) {
       // Use actual token counts from provider (accurate)
       inputTokenCount = actualTokens.inputTokens;
       outputTokenCount = actualTokens.outputTokens;
+      reasoningTokenCount = actualTokens.reasoningTokens ?? 0;
     } else {
       // Fallback: Estimate token counts using TokenEstimatorService
       const inputEstimate = TokenEstimatorService.estimateInputTokens(systemMessage, userPrompt);
@@ -165,10 +170,12 @@ export class UseCaseMetricsLoggerService {
 
       inputTokenCount = inputEstimate.estimated;
       outputTokenCount = outputEstimate.estimated;
+      reasoningTokenCount = 0;
     }
 
+    // Speed includes reasoning tokens — they represent real model work time
     const tokensPerSecond = TokenEstimatorService.calculateTokensPerSecond(
-      outputTokenCount,
+      outputTokenCount + reasoningTokenCount,
       executionTimeSeconds
     );
 
@@ -176,6 +183,7 @@ export class UseCaseMetricsLoggerService {
       executionTimeSeconds,
       inputTokenCount,
       outputTokenCount,
+      reasoningTokenCount,
       tokensPerSecond,
       success,
       errorMessage,
