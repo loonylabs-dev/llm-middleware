@@ -1,3 +1,33 @@
+## [2.26.0] - 2026-03-23
+
+### feat(debug): add `DEBUG_LLM_REQUEST_CONSOLE` toggle to suppress request logs in console
+
+In development mode (`NODE_ENV=development`) the `LLMDebugger` was unconditionally enabled and printed both request and response payloads to stdout. While `DEBUG_LLM_RESPONSE_CONSOLE=false` could already suppress response output, there was no equivalent opt-out for the request block — making it impossible to silence the large `🚀 LLM REQUEST` output without switching `NODE_ENV`.
+
+#### What Changed
+
+- `debug-llm.utils.ts`: Added `private static showRequestInConsole` flag, initialized from `DEBUG_LLM_REQUEST_CONSOLE !== 'false'` (with backward-compat alias `DEBUG_OLLAMA_REQUEST_CONSOLE`)
+- `logRequest()` now guards `logRequestToConsole()` behind `showRequestInConsole`, mirroring the existing `showResponseInConsole` pattern on `logResponse()`
+- File logging (`saveToMarkdown`) is unaffected — request data is still written to `logs/llm/`
+- Errors (`logError`) are unaffected — always shown in console
+
+#### Migration
+
+No breaking changes. The flag defaults to `true`, preserving current behavior. To suppress request console output:
+
+```bash
+DEBUG_LLM_REQUEST_CONSOLE=false
+```
+
+To suppress both request and response console output while keeping file logs:
+
+```bash
+DEBUG_LLM_REQUEST_CONSOLE=false
+DEBUG_LLM_RESPONSE_CONSOLE=false
+```
+
+---
+
 ## [2.25.0] - 2026-03-20
 
 ### fix(metrics): include reasoning tokens in speed calculation

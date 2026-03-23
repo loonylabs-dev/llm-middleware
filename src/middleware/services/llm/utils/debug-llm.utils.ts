@@ -11,6 +11,7 @@ import { LLMDebugInfo } from '../types';
  */
 export class LLMDebugger {
   private static isMinimal = process.env.DEBUG_LLM_MINIMAL === 'true' || process.env.DEBUG_OLLAMA_MINIMAL === 'true';
+  private static showRequestInConsole = process.env.DEBUG_LLM_REQUEST_CONSOLE !== 'false' && process.env.DEBUG_OLLAMA_REQUEST_CONSOLE !== 'false';
   private static showResponseInConsole = process.env.DEBUG_LLM_RESPONSE_CONSOLE !== 'false' && process.env.DEBUG_OLLAMA_RESPONSE_CONSOLE !== 'false';
 
   private static isEnabled = process.env.DEBUG_LLM_REQUESTS === 'true' ||
@@ -309,7 +310,9 @@ ${JSON.stringify(debugInfo.error.details, null, 2)}
 
   // API methods for easy usage
   static async logRequest(debugInfo: LLMDebugInfo): Promise<void> {
-    this.logRequestToConsole(debugInfo);
+    if (this.showRequestInConsole) {
+      this.logRequestToConsole(debugInfo);
+    }
   }
 
   static async logResponse(debugInfo: LLMDebugInfo): Promise<void> {

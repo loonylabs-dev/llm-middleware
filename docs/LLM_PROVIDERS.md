@@ -454,16 +454,27 @@ import { LLMDebugger, LLMDebugInfo } from '@loonylabs/llm-middleware';
 # Enable debug logging for all providers
 DEBUG_LLM_REQUESTS=true
 
-# Minimal console output
+# Minimal console output (suppresses prompt/response body, keeps headers)
 DEBUG_LLM_MINIMAL=true
 
-# Hide responses in console
+# Hide request block (🚀 LLM REQUEST) in console — file logs unaffected
+DEBUG_LLM_REQUEST_CONSOLE=false
+
+# Hide response block (📥 LLM RESPONSE) in console — file logs unaffected
 DEBUG_LLM_RESPONSE_CONSOLE=false
 
-# Backward compatibility (still works)
+# Suppress both request and response console output (errors still shown)
+DEBUG_LLM_REQUEST_CONSOLE=false
+DEBUG_LLM_RESPONSE_CONSOLE=false
+
+# Backward compatibility aliases (still work)
 DEBUG_OLLAMA_REQUESTS=true
 DEBUG_OLLAMA_MINIMAL=true
+DEBUG_OLLAMA_REQUEST_CONSOLE=false
+DEBUG_OLLAMA_RESPONSE_CONSOLE=false
 ```
+
+> **Note:** In development (`NODE_ENV=development`) the debugger is always enabled regardless of `DEBUG_LLM_REQUESTS`. Use `DEBUG_LLM_REQUEST_CONSOLE=false` / `DEBUG_LLM_RESPONSE_CONSOLE=false` to suppress console output while keeping file logs in `logs/llm/`.
 
 ## Type System
 
