@@ -44,7 +44,6 @@ export class OllamaProvider extends BaseLLMProvider {
       model,
       temperature = 0.7,
       baseUrl = process.env.MODEL1_URL || "http://localhost:11434",
-      think,
       timeout = 180000,
       reasoningEffort,
       repeat_penalty,
@@ -61,13 +60,16 @@ export class OllamaProvider extends BaseLLMProvider {
       pageName
     } = options;
 
-    // Determine thinking/reasoning behavior
-    // 1. Explicit 'think' flag takes precedence
-    // 2. 'reasoningEffort === none' disables thinking
-    // 3. Any other reasoningEffort enables thinking
-    let finalThinkValue = think;
-    if (finalThinkValue === undefined && reasoningEffort !== undefined) {
+    // Map reasoningEffort to Ollama's binary 'think' flag.
+    // Ollama only supports on/off — there are no granular thinking levels.
+    // 'none' disables thinking; any other value enables it.
+    // Warning: 'low'/'medium'/'high' all behave identically.
+    let finalThinkValue: boolean | undefined;
+    if (reasoningEffort !== undefined) {
       finalThinkValue = reasoningEffort !== 'none';
+      if (reasoningEffort !== 'none' && reasoningEffort !== 'high') {
+        logger.warn(`reasoningEffort '${reasoningEffort}' mapped to think=true for Ollama — provider only supports on/off, not granular levels`);
+      }
     }
 
     // Validate that model is provided
@@ -238,16 +240,21 @@ export class OllamaProvider extends BaseLLMProvider {
         debugInfo.response = aiResponse.message.content;
         debugInfo.rawResponseData = aiResponse;
 
-        // Extract thinking using model-specific extractor (Strategy Pattern)
-        // DeepSeek R1 and similar models use <think> tags in their responses
+        // Extract thinking using model-specific extractor (Strategy Pattern).
+        // Handles models that embed thinking in <think> tags (e.g. DeepSeek R1).
+        // For native Ollama thinking (think=true), the API already separates
+        // message.thinking from message.content — the extractor is a no-op then.
         const extractor = ThinkingExtractorFactory.forModel(model);
         const { content: cleanContent, thinking } = extractor.extract(aiResponse.message.content);
 
-        // Update message with separated content and thinking
         aiResponse.message.content = cleanContent;
         if (thinking) {
           aiResponse.message.thinking = thinking;
-          debugInfo.thinking = thinking;
+        }
+        // Prefer tag-extracted thinking; fall back to native Ollama thinking field
+        const thinkingForDebug = thinking || aiResponse.message.thinking;
+        if (thinkingForDebug) {
+          debugInfo.thinking = thinkingForDebug;
         }
 
         // Log response (including markdown saving)
@@ -338,12 +345,13 @@ export class OllamaProvider extends BaseLLMProvider {
                 if (retryThinking) {
                   aiResponse.message.thinking = retryThinking;
                 }
+                const retryThinkingForDebug = retryThinking || aiResponse.message.thinking;
 
                 debugInfo.responseTimestamp = new Date();
                 debugInfo.response = retryCleanContent;
                 debugInfo.rawResponseData = aiResponse;
-                if (retryThinking) {
-                  debugInfo.thinking = retryThinking;
+                if (retryThinkingForDebug) {
+                  debugInfo.thinking = retryThinkingForDebug;
                 }
 
                 await LLMDebugger.logResponse(debugInfo);
@@ -524,12 +532,14 @@ export class OllamaProvider extends BaseLLMProvider {
     if (thinking) {
       aiResponse.message.thinking = thinking;
     }
+    // Prefer tag-extracted thinking; fall back to native Ollama thinking field
+    const thinkingForDebug = thinking || aiResponse.message.thinking;
 
     debugInfo.responseTimestamp = new Date();
     debugInfo.response = cleanContent;
     debugInfo.rawResponseData = aiResponse;
-    if (thinking) {
-      debugInfo.thinking = thinking;
+    if (thinkingForDebug) {
+      debugInfo.thinking = thinkingForDebug;
     }
 
     await LLMDebugger.logResponse(debugInfo);

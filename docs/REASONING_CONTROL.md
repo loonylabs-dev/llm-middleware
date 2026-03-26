@@ -129,6 +129,39 @@ The `reasoningEffort` maps to `thinkingConfig.thinkingLevel`:
 
 **Automatic fallback (v2.24.0+):** Unsupported thinking levels are automatically clamped to the nearest supported level. A warning is logged when a fallback occurs.
 
+### Ollama (v2.27.0+)
+
+Ollama only supports on/off thinking — there are no granular levels.
+
+| reasoningEffort | Ollama `think` flag | Note |
+|---|---|---|
+| `none` | `false` | Thinking disabled |
+| `low` | `true` | ⚠️ Warning logged — same as `high` |
+| `medium` | `true` | ⚠️ Warning logged — same as `high` |
+| `high` | `true` | Thinking enabled |
+| not set | omitted | Model default behavior |
+
+**Supported models:** Qwen 3+, DeepSeek R1 (via Ollama), QwQ and any model loaded in Ollama with native thinking support.
+
+**Important:** Ollama does not report separate reasoning token counts. `eval_count` in the response includes both output and thinking tokens, so `usage.reasoningTokens` will always be `undefined` for this provider.
+
+```typescript
+const response = await ollamaProvider.callWithSystemMessage(
+  'Solve this step by step: 17 × 24',
+  'You are a helpful assistant.',
+  {
+    model: 'qwen3:8b',
+    reasoningEffort: 'high',  // enables think=true internally
+  }
+);
+
+// Thinking content is available separately
+if (response.message.thinking) {
+  console.log('Reasoning:', response.message.thinking);
+}
+console.log('Answer:', response.message.content);
+```
+
 ### Anthropic Claude
 
 The `reasoningEffort` maps to `thinking.budget_tokens`:

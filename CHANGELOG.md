@@ -1,3 +1,44 @@
+## [2.27.0] - 2026-03-26
+
+### feat(ollama): native reasoning support via `reasoningEffort` (v2.27.0)
+
+Ollama models with native thinking support (Qwen 3+, DeepSeek R1 etc.) can now be controlled via the standard `reasoningEffort` parameter — consistent with all other providers.
+
+#### What Changed
+
+- `OllamaRequestOptions`: added `timeout?: number` to override the default 180s axios timeout. Removed `think` (internal implementation detail — use `reasoningEffort` instead) and the duplicate `reasoningEffort` field (already in `CommonLLMOptions`)
+- `ollama-provider.ts`: `reasoningEffort` is mapped internally to Ollama's `think` flag (`none` → `false`, any other value → `true`). A warning is logged when granular levels (`low`/`medium`) are used to make the on/off limitation visible
+- `ollama-provider.ts`: `debugInfo.thinking` now correctly captures the native `message.thinking` field returned by Ollama's API (in addition to the existing `<think>`-tag extraction for models like DeepSeek R1)
+- `model-parameter-manager.service.ts`: removed orphaned `think`/`reasoningEffort`/`timeout` mappings from `getDefinedParameters()` — these are request-level options, not model sampling parameters
+
+#### Behavior
+
+| `reasoningEffort` | Ollama `think` flag | Note |
+|---|---|---|
+| `'none'` | `false` | Thinking disabled |
+| `'low'` | `true` | ⚠️ Warning logged — same as high |
+| `'medium'` | `true` | ⚠️ Warning logged — same as high |
+| `'high'` | `true` | Thinking enabled |
+| not set | omitted | Model default |
+
+**Important limitations:**
+- Ollama does not support granular thinking levels — only on/off
+- Ollama does not report separate reasoning token counts — `eval_count` includes both output and thinking tokens, so `usage.reasoningTokens` is always `undefined` for this provider
+
+#### Migration
+
+If you were previously using `think: true/false` directly on `OllamaRequestOptions`, switch to `reasoningEffort`:
+
+```typescript
+// Before (no longer supported)
+{ model: 'qwen3:8b', think: true }
+
+// After
+{ model: 'qwen3:8b', reasoningEffort: 'high' }
+```
+
+---
+
 ## [2.26.0] - 2026-03-23
 
 ### feat(debug): add `DEBUG_LLM_REQUEST_CONSOLE` toggle to suppress request logs in console

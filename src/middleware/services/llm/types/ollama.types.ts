@@ -2,22 +2,26 @@
  * Ollama-specific types and interfaces
  */
 
-import { CommonLLMOptions, CommonLLMResponse, ReasoningEffort } from './common.types';
+import { CommonLLMOptions, CommonLLMResponse } from './common.types';
 
 /**
  * Ollama-specific request options
  * Extends common options with Ollama-specific parameters
+ *
+ * Reasoning/thinking: use `reasoningEffort` from CommonLLMOptions.
+ * Ollama only supports on/off (no granular levels), so 'low'/'medium'/'high'
+ * all map to think=true internally. A warning is logged when granular levels
+ * are used to make this limitation visible.
+ *
+ * Note: Ollama does not report separate reasoning token counts — eval_count
+ * includes both output and thinking tokens. reasoningTokens in TokenUsage
+ * will therefore always be undefined for this provider.
  */
 export interface OllamaRequestOptions extends CommonLLMOptions {
   // Ollama-specific advanced parameters
-  /** Optional: true = Thinking activate, false = deactivate (for Qwen 3.5+, DeepSeek etc) */
-  think?: boolean;
 
   /** Optional: Override default axios timeout in ms */
   timeout?: number;
-
-  /** Controls reasoning/thinking effort for models that support it (mapped to 'think') */
-  reasoningEffort?: ReasoningEffort;
 
   /** Penalty for repeating tokens (default: 1.1) */
   repeat_penalty?: number;

@@ -103,6 +103,8 @@ console.log('Available:', providers);
 ### Ollama
 
 **Supported Parameters:**
+- `reasoningEffort` - Enable/disable native thinking for supported models (Qwen 3+, DeepSeek R1 etc.) — maps to Ollama's `think` flag internally. Only on/off supported; `low`/`medium`/`high` all enable thinking (warning logged for `low`/`medium`)
+- `timeout` - Override default axios timeout in ms (default: 180000)
 - `repeat_penalty` - Penalty for repeating tokens (default: 1.1)
 - `top_p` - Top-p sampling (nucleus sampling)
 - `top_k` - Top-k sampling
@@ -115,7 +117,7 @@ console.log('Available:', providers);
 - `typical_p` - Typical sampling
 - `num_thread` - Number of threads to use
 
-**Documentation:** See [OLLAMA_PARAMETERS.md](./OLLAMA_PARAMETERS.md)
+**Documentation:** See [OLLAMA_PARAMETERS.md](./OLLAMA_PARAMETERS.md) and [REASONING_CONTROL.md](./REASONING_CONTROL.md)
 
 ### Anthropic Provider (v2.1+)
 
