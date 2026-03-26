@@ -44,6 +44,9 @@ export class OllamaProvider extends BaseLLMProvider {
       model,
       temperature = 0.7,
       baseUrl = process.env.MODEL1_URL || "http://localhost:11434",
+      think,
+      timeout = 180000,
+      reasoningEffort,
       repeat_penalty,
       top_p,
       top_k,
@@ -57,6 +60,15 @@ export class OllamaProvider extends BaseLLMProvider {
       pageNumber,
       pageName
     } = options;
+
+    // Determine thinking/reasoning behavior
+    // 1. Explicit 'think' flag takes precedence
+    // 2. 'reasoningEffort === none' disables thinking
+    // 3. Any other reasoningEffort enables thinking
+    let finalThinkValue = think;
+    if (finalThinkValue === undefined && reasoningEffort !== undefined) {
+      finalThinkValue = reasoningEffort !== 'none';
+    }
 
     // Validate that model is provided
     if (!model) {
@@ -86,6 +98,7 @@ export class OllamaProvider extends BaseLLMProvider {
       ],
       temperature: temperature,
       stream: false,
+      ...(finalThinkValue !== undefined && { think: finalThinkValue }),
       options: {
         ...(repeat_penalty !== undefined && { repeat_penalty }),
         ...(top_p !== undefined && { top_p }),
@@ -185,7 +198,7 @@ export class OllamaProvider extends BaseLLMProvider {
       const response = await retryWithBackoff(
         () => axios.post(`${baseUrl}/api/chat`, data, {
           headers,
-          timeout: 180000 // 180 second timeout
+          timeout: timeout // 180 second timeout
         }),
         this.constructor.name,
         options.retry
@@ -379,7 +392,7 @@ export class OllamaProvider extends BaseLLMProvider {
                 };
                 const retryRaw = await axios.post(`${baseUrl}/api/chat`, baseData, {
                   headers: headersRawAuth,
-                  timeout: 180000
+                  timeout: timeout
                 });
                 if (retryRaw && retryRaw.status === 200) {
                   return this.handleSuccessfulResponse(retryRaw.data, debugInfo, sessionId, requestStartTime, debugContext, contextForLogger, requestId, model);
@@ -401,7 +414,7 @@ export class OllamaProvider extends BaseLLMProvider {
                 };
                 const retryApiKey = await axios.post(`${baseUrl}/api/chat`, baseData, {
                   headers: headersApiKey,
-                  timeout: 180000
+                  timeout: timeout
                 });
                 if (retryApiKey && retryApiKey.status === 200) {
                   return this.handleSuccessfulResponse(retryApiKey.data, debugInfo, sessionId, requestStartTime, debugContext, contextForLogger, requestId, model);
@@ -419,7 +432,7 @@ export class OllamaProvider extends BaseLLMProvider {
               const headersNoAuth: Record<string, string> = { 'Content-Type': 'application/json' };
               const retryAuthless = await axios.post(`${baseUrl}/api/chat`, baseData, {
                 headers: headersNoAuth,
-                timeout: 180000
+                timeout: timeout
               });
               if (retryAuthless && retryAuthless.status === 200) {
                 return this.handleSuccessfulResponse(retryAuthless.data, debugInfo, sessionId, requestStartTime, debugContext, contextForLogger, requestId, model);

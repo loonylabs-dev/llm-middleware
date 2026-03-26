@@ -286,6 +286,15 @@ export class ModelParameterManagerService {
     if (parameters.numBatch !== undefined) {
       result.numBatch = parameters.numBatch;
     }
+    if (parameters.think !== undefined) {
+      result.think = parameters.think;
+    }
+    if (parameters.reasoningEffort !== undefined) {
+      result.reasoningEffort = parameters.reasoningEffort;
+    }
+    if (parameters.timeout !== undefined) {
+      result.timeout = parameters.timeout;
+    }
 
     return result;
   }
@@ -489,6 +498,9 @@ export class ModelParameterManagerService {
   public static summarizeParameters(parameters: ModelParameters): string {
     const defined = this.getDefinedParameters(parameters);
     const parts = Object.entries(defined).map(([key, value]) => `${key}=${value}`);
+    return parts.join(', ');
+  }
+}lue}`);
     return parts.join(', ');
   }
 }

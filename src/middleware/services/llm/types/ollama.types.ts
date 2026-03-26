@@ -2,7 +2,7 @@
  * Ollama-specific types and interfaces
  */
 
-import { CommonLLMOptions, CommonLLMResponse } from './common.types';
+import { CommonLLMOptions, CommonLLMResponse, ReasoningEffort } from './common.types';
 
 /**
  * Ollama-specific request options
@@ -10,6 +10,15 @@ import { CommonLLMOptions, CommonLLMResponse } from './common.types';
  */
 export interface OllamaRequestOptions extends CommonLLMOptions {
   // Ollama-specific advanced parameters
+  /** Optional: true = Thinking activate, false = deactivate (for Qwen 3.5+, DeepSeek etc) */
+  think?: boolean;
+
+  /** Optional: Override default axios timeout in ms */
+  timeout?: number;
+
+  /** Controls reasoning/thinking effort for models that support it (mapped to 'think') */
+  reasoningEffort?: ReasoningEffort;
+
   /** Penalty for repeating tokens (default: 1.1) */
   repeat_penalty?: number;
 
