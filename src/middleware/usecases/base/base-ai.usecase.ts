@@ -232,7 +232,6 @@ export abstract class BaseAIUseCase<
         effectiveSystemMessage,
         {
           model: this.modelConfig.name,
-          temperature: effectiveTemperature,
           authToken: this.modelConfig.bearerToken,
           baseUrl: this.modelConfig.baseUrl,
           provider: provider,
@@ -241,6 +240,9 @@ export abstract class BaseAIUseCase<
           maxTokens: validatedParams.numPredict,
           // Ollama-specific options (includes num_predict, num_ctx, num_batch, etc.)
           ...ModelParameterManagerService.toOllamaOptions(validatedParams),
+          // Request-level temperature override MUST come after toOllamaOptions spread,
+          // since that helper always emits a `temperature` field from modelConfig.
+          temperature: effectiveTemperature,
           // Vertex AI region (passed through to VertexAIProvider)
           ...(this.modelConfig.region && { region: this.modelConfig.region }),
           // Reasoning effort for models that support thinking (Gemini 2.5+, Claude, etc.)

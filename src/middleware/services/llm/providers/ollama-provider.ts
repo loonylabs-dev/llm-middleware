@@ -92,16 +92,18 @@ export class OllamaProvider extends BaseLLMProvider {
     }
 
     // Create base data without session_id
+    // Ollama's /api/chat reads sampling parameters (incl. temperature) from the
+    // nested `options` object — a top-level `temperature` field is silently ignored.
     const baseData = {
       model: model,
       messages: [
         { role: "system", content: systemMessage },
         { role: "user", content: textContent }
       ],
-      temperature: temperature,
       stream: false,
       ...(finalThinkValue !== undefined && { think: finalThinkValue }),
       options: {
+        temperature,
         ...(repeat_penalty !== undefined && { repeat_penalty }),
         ...(top_p !== undefined && { top_p }),
         ...(top_k !== undefined && { top_k }),
