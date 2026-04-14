@@ -1,3 +1,27 @@
+## [2.27.1] - 2026-04-14
+
+### fix: temperature override + Ollama temperature placement
+
+Two bugs around `temperature` handling are fixed. Both existed since the parameter manager refactor and were masked when the per-request temperature happened to match the model config.
+
+#### Bug 1 — Per-request `temperature` was silently overwritten
+
+`BaseAIUseCase.execute()` built the provider options with `temperature: effectiveTemperature` **before** spreading `ModelParameterManagerService.toOllamaOptions(validatedParams)`. Since `toOllamaOptions()` always emits a `temperature` field (sourced from `modelConfig.temperature`), the spread clobbered the per-request override. As a result, `BaseAIRequest.temperature` (documented since 2.17.0) had no effect on any provider.
+
+Fix: the `temperature: effectiveTemperature` field is now placed **after** the spread so the request-level value wins, matching the documented priority `request > usecase override > model config`.
+
+#### Bug 2 — Ollama received `temperature` at the wrong nesting level
+
+`OllamaProvider.callWithSystemMessage()` emitted `temperature` as a top-level field in the `/api/chat` request body. Ollama reads sampling parameters exclusively from the nested `options` object, so the value was dropped and the server default was used instead.
+
+Fix: `temperature` is now emitted inside `options` alongside `top_p`, `repeat_penalty`, etc.
+
+#### Tests
+
+- `tests/unit/services/llm/providers/ollama-provider.test.ts`: added assertions that `temperature` lands in `options`, never top-level, preserves `0`, and defaults to `0.7` when omitted.
+
+---
+
 ## [2.27.0] - 2026-03-26
 
 ### feat(ollama): native reasoning support via `reasoningEffort` (v2.27.0)

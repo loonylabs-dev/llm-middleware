@@ -101,6 +101,51 @@ describe('OllamaProvider', () => {
     });
   });
 
+  describe('temperature placement', () => {
+    it('should send temperature inside the nested options object', async () => {
+      await provider.callWithSystemMessage('prompt', 'system', { model: 'qwen3.5', temperature: 0.2 });
+
+      expect(mockedAxios.post).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          options: expect.objectContaining({ temperature: 0.2 })
+        }),
+        expect.any(Object)
+      );
+    });
+
+    it('should not send temperature as a top-level request field', async () => {
+      await provider.callWithSystemMessage('prompt', 'system', { model: 'qwen3.5', temperature: 0.2 });
+
+      const body = mockedAxios.post.mock.calls[0][1] as Record<string, unknown>;
+      expect(body).not.toHaveProperty('temperature');
+    });
+
+    it('should default temperature to 0.7 inside options when omitted', async () => {
+      await provider.callWithSystemMessage('prompt', 'system', { model: 'qwen3.5' });
+
+      expect(mockedAxios.post).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          options: expect.objectContaining({ temperature: 0.7 })
+        }),
+        expect.any(Object)
+      );
+    });
+
+    it('should forward temperature=0 verbatim (no falsy short-circuit)', async () => {
+      await provider.callWithSystemMessage('prompt', 'system', { model: 'qwen3.5', temperature: 0 });
+
+      expect(mockedAxios.post).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          options: expect.objectContaining({ temperature: 0 })
+        }),
+        expect.any(Object)
+      );
+    });
+  });
+
   describe('timeout', () => {
     it('should use custom timeout in axios call', async () => {
       await provider.callWithSystemMessage('prompt', 'system', { model: 'qwen3.5', timeout: 50000 });
