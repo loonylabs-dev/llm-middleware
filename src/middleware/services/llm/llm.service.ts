@@ -9,6 +9,7 @@ import { AnthropicProvider } from './providers/anthropic-provider';
 import { GeminiProvider } from './providers/gemini-provider';
 import { RequestyProvider } from './providers/requesty-provider';
 import { VertexAIProvider, VertexAIProviderConfig } from './providers/gemini';
+import { BedrockProvider } from './providers/bedrock-provider';
 import { LLMProvider, CommonLLMOptions, CommonLLMResponse } from './types';
 import { MultimodalContent } from './types/multimodal.types';
 
@@ -29,6 +30,7 @@ export class LLMService {
     this.providers.set(LLMProvider.GOOGLE, new GeminiProvider());
     this.providers.set(LLMProvider.REQUESTY, new RequestyProvider());
     this.providers.set(LLMProvider.VERTEX_AI, new VertexAIProvider(options?.vertexAIConfig));
+    this.providers.set(LLMProvider.BEDROCK, new BedrockProvider());
   }
 
   /**

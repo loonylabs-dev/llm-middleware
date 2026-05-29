@@ -1,3 +1,63 @@
+## [2.28.0] - 2026-05-29
+
+### feat(bedrock): AWS Bedrock provider via Converse API with central reasoning control
+
+New provider for AWS Bedrock foundation models. It uses the model-agnostic **Converse API** and authenticates with a **Bedrock API key as a Bearer token** — no AWS SDK and no SigV4 signing — mirroring the axios + Authorization-header pattern of the Vertex AI provider. Switching between models (Claude, Nova, Llama, Qwen, MiniMax, GLM, Kimi, DeepSeek, gpt-oss) is just a different `model` id.
+
+#### What Changed
+
+- `LLMProvider` enum: added `BEDROCK = 'bedrock'`
+- `types/bedrock.types.ts` (new): Converse request/response types
+- `providers/bedrock-provider.ts` (new): `BedrockProvider extends BaseLLMProvider`, registered in `LLMService`
+- `providers/bedrock-reasoning/` (new): per-family reasoning Strategy Pattern (interface, factory, strategies)
+- Endpoint: `https://bedrock-runtime.{region}.amazonaws.com/model/{modelId}/converse`
+- Config via env: `BEDROCK_API_KEY`, `BEDROCK_REGION` (default `eu-central-1`), `BEDROCK_MODEL`
+- Native `reasoningContent` → `message.thinking`; `cacheRead/WriteInputTokens` → `usage.cacheMetadata`
+- Smoke test: `npm run test:provider:bedrock`
+
+#### Reasoning control
+
+Consumers set the provider-agnostic `reasoningEffort` (`none|low|medium|high`, same as Vertex AI). A per-family strategy translates it to the model's actual mechanism — verified live on Bedrock Converse:
+
+| Model family | Mechanism (`additionalModelRequestFields`) | Granularity |
+|---|---|---|
+| Qwen, Kimi, gpt-oss, GLM (5/4.7), DeepSeek | `reasoning_effort` | low/med/high |
+| Amazon Nova 2 | `reasoningConfig` (type + maxReasoningEffort) | low/med/high |
+| MiniMax | — (always-on interleaved thinking) | no-op |
+| Anthropic Claude | `thinking` token budget — not yet mapped | no-op (follow-up) |
+
+- `reasoning_effort` is the default strategy (honored by every open-weight model verified on Bedrock), keeping behavior uniform regardless of model
+- Nova at `high` forbids `temperature`/`topP`/`maxTokens` → removed automatically + warning logged (reasoning wins)
+- `reasoningEffort: 'none'` is not a reliable off-switch for `reasoning_effort` models (field omitted + warning logged)
+
+#### Model selection (EU)
+
+Verified availability and quality (Artificial Analysis Intelligence Index v4.0; Gemini 3 Flash = 46):
+
+- **Quality ≥ Gemini 3 Flash, open-weight, EU:** GLM-5 (`zai.glm-5`, 50) or Kimi K2.5 (`moonshotai.kimi-k2.5`, 47) — available in Stockholm (`eu-north-1`) / London (`eu-west-2`)
+- **Cheap + fine-grained reasoning control:** gpt-oss-120b, Nova 2 Lite
+- Frankfurt (`eu-central-1`) lacks GLM-5/Kimi/DeepSeek; set `BEDROCK_REGION` per target model
+
+#### Limitations
+
+- Claude reasoning not yet mapped (Claude uses a `thinking` token budget) — no-op for now
+- Kimi/Moonshot: reported Converse bugs around **tool use** (plain text generation works reliably)
+- Image/vision input not yet supported (text-only; warning logged if images are passed)
+- No separate `reasoningTokens` tracking (Converse `usage` does not split them out)
+- No region rotation (unlike the Vertex AI provider)
+
+#### Tests
+
+- `tests/unit/services/llm/providers/bedrock-provider.test.ts` — provider (endpoint, Bearer auth, Converse payload, response normalization, reasoning integration)
+- `tests/unit/services/llm/providers/bedrock-reasoning.test.ts` — reasoning strategies + factory routing
+
+#### Docs
+
+- New: `docs/AWS_BEDROCK.md` (auth strategies, region/model availability, reasoning control, troubleshooting)
+- Updated: `docs/LLM_PROVIDERS.md`
+
+---
+
 ## [2.27.1] - 2026-04-14
 
 ### fix: temperature override + Ollama temperature placement

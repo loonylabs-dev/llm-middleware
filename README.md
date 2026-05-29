@@ -45,6 +45,7 @@
   - ✅ **Google Gemini Direct**: Complete support for Gemini models via API Key
   - ✅ **Google Vertex AI**: CDPA/GDPR-compliant with EU data residency (Service Account auth)
   - ✅ **Requesty.AI**: 300+ models via unified API, built-in cost tracking
+  - ✅ **AWS Bedrock**: Converse API via Bearer-token auth (no AWS SDK); Claude, Nova, Qwen, GLM, Kimi, DeepSeek, gpt-oss — with central `reasoningEffort` control — **v2.28.0**
   - 🔌 **Pluggable**: Easy to add custom providers - see [LLM Providers Guide](docs/LLM_PROVIDERS.md)
 - 👁️ **Vision / Multimodal Input**: Send images alongside text to LLM providers
   - ✨ **v2.22.0**: Provider-agnostic `MultimodalContent` type (`string | ContentPart[]`)
@@ -370,7 +371,7 @@ VERTEX_AI_MODEL=gemini-2.5-flash                 # Default Vertex AI model
 GOOGLE_APPLICATION_CREDENTIALS=./vertex-ai-service-account.json  # Service Account
 ```
 
-**Multi-Provider Support:** The middleware is fully integrated with **Ollama**, **Anthropic Claude**, **Google Gemini** (Direct API & Vertex AI), and **Requesty.AI**. See the [LLM Providers Guide](docs/LLM_PROVIDERS.md) for details on the provider system and how to use or add providers.
+**Multi-Provider Support:** The middleware is fully integrated with **Ollama**, **Anthropic Claude**, **Google Gemini** (Direct API & Vertex AI), **Requesty.AI**, and **AWS Bedrock** (Converse API, EU data residency). See the [LLM Providers Guide](docs/LLM_PROVIDERS.md) for details on the provider system and how to use or add providers. AWS Bedrock specifics: [AWS Bedrock Guide](docs/AWS_BEDROCK.md).
 
 </details>
 

@@ -44,9 +44,15 @@ switch (providerName) {
     apiKey = process.env.REQUESTY_API_KEY;
     break;
 
+  case 'bedrock':
+    provider = LLMProvider.BEDROCK;
+    modelName = process.env.BEDROCK_MODEL || 'qwen.qwen3-32b-v1:0';
+    apiKey = process.env.BEDROCK_API_KEY;
+    break;
+
   default:
     console.error(`❌ Unknown provider: ${providerName}`);
-    console.log('Available providers: ollama, anthropic, requesty');
+    console.log('Available providers: ollama, anthropic, requesty, bedrock');
     process.exit(1);
 }
 
@@ -116,7 +122,7 @@ async function runProviderSmokeTest() {
         temperature: 0.7,
         ...(baseUrl && { baseUrl }),
         ...(apiKey && { authToken: apiKey }),
-        ...(provider === LLMProvider.ANTHROPIC && { maxTokens: 1024 }),
+        ...((provider === LLMProvider.ANTHROPIC || provider === LLMProvider.BEDROCK) && { maxTokens: 1024 }),
         debugContext: 'provider-smoke-test',
         sessionId: `smoke-${provider}-${Date.now()}`
       }
