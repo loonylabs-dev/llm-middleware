@@ -4,7 +4,8 @@
  *
  * Key differences from Gemini Direct API:
  * - Uses OAuth2 Bearer Token instead of API Key
- * - Supports regional endpoints (e.g., europe-west3 for Frankfurt)
+ * - Supports regional endpoints (e.g., europe-west3 for Frankfurt) and
+ *   multi-region endpoints (eu / us) via the dedicated `.rep.` hostname
  * - Requires Google Cloud Project ID
  * - Service Account JSON for authentication
  */
@@ -34,6 +35,8 @@ export type VertexAIRegion =
   | 'europe-north1'   // Finland
   | 'europe-central2' // Warsaw
   | 'europe-southwest1' // Madrid
+  | 'eu'              // EU multi-region — in-EU ML processing (data residency). Required for Gemini 3.1 Flash-Lite / 3.5 Flash, which are NOT served by single EU regions.
+  | 'us'              // US multi-region — in-US ML processing
   | 'us-central1'     // Iowa (for testing)
   | 'us-east4'        // Virginia
   | 'global';         // Global endpoint (no data residency guarantee)
@@ -45,7 +48,7 @@ export interface VertexAIProviderOptions extends GeminiProviderOptions {
   /** Google Cloud Project ID */
   projectId?: string;
 
-  /** Vertex AI region (default: europe-west3 for Frankfurt) */
+  /** Vertex AI region — single region (e.g. europe-west3) or multi-region (eu / us). Default: europe-west3 (Frankfurt) */
   region?: VertexAIRegion;
 
   /** Path to service account JSON file */
@@ -76,7 +79,7 @@ export interface VertexAIProviderConfig {
  *
  * Environment variables:
  * - GOOGLE_CLOUD_PROJECT: Google Cloud Project ID
- * - VERTEX_AI_REGION: Region for data residency (default: europe-west3)
+ * - VERTEX_AI_REGION: Region for data residency — single (europe-west3) or multi-region (eu / us) (default: europe-west3)
  * - GOOGLE_APPLICATION_CREDENTIALS: Path to service account JSON file
  * - VERTEX_AI_MODEL: Default model name
  *
@@ -110,7 +113,7 @@ export class VertexAIProvider extends GeminiBaseProvider {
 
   /**
    * Get the base URL for Vertex AI API.
-   * Regional endpoints ensure data residency compliance.
+   * Regional and multi-region endpoints ensure data residency compliance.
    * Preview models automatically use global endpoint.
    */
   protected getBaseUrl(model: string, options: VertexAIProviderOptions): string {
@@ -120,7 +123,22 @@ export class VertexAIProvider extends GeminiBaseProvider {
       return 'https://aiplatform.googleapis.com';
     }
 
+    // Multi-region locations (eu, us) keep ML processing within the geography
+    // (data residency) but must use the dedicated `.rep.` hostname — the
+    // `{region}-aiplatform` pattern is only valid for single regions.
+    if (this.isMultiRegion(region)) {
+      return `https://aiplatform.${region}.rep.googleapis.com`;
+    }
+
     return `https://${region}-aiplatform.googleapis.com`;
+  }
+
+  /**
+   * Whether a location is a multi-region (eu / us) rather than a single region.
+   * Multi-regions require the `.rep.` endpoint hostname.
+   */
+  private isMultiRegion(region: VertexAIRegion): boolean {
+    return region === 'eu' || region === 'us';
   }
 
   /**

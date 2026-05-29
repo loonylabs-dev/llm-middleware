@@ -112,11 +112,32 @@ export class BedrockProvider extends BaseLLMProvider {
           .map(p => p.text)
           .join('\n');
 
+    // AWS Bedrock Converse caps `inferenceConfig.temperature` and `topP` at 1.0
+    // (API-wide, NOT model-specific — the standardized inferenceConfig range is
+    // 0.0–1.0). Consumers may pass a Gemini-style range (e.g. temperature 1.3);
+    // sending it unclamped triggers a hard HTTP 400, which surfaces to the caller
+    // as a null response ("No response received"). Clamp to the valid range + warn.
+    const clampUnit = (v: number): number => Math.max(0, Math.min(1, v));
+    const clampedTemperature = clampUnit(temperature);
+    if (clampedTemperature !== temperature) {
+      logger.warn(
+        `Bedrock Converse caps temperature at 1.0; clamping ${temperature} → ${clampedTemperature}`,
+        { context: 'BedrockProvider', metadata: { model, requestedTemperature: temperature } }
+      );
+    }
+    const clampedTopP = topP !== undefined ? clampUnit(topP) : undefined;
+    if (topP !== undefined && clampedTopP !== topP) {
+      logger.warn(
+        `Bedrock Converse caps topP at 1.0; clamping ${topP} → ${clampedTopP}`,
+        { context: 'BedrockProvider', metadata: { model, requestedTopP: topP } }
+      );
+    }
+
     // Build Converse inferenceConfig (standardized inference parameters)
     const inferenceConfig: BedrockInferenceConfig = {
       maxTokens,
-      temperature,
-      ...(topP !== undefined && { topP }),
+      temperature: clampedTemperature,
+      ...(clampedTopP !== undefined && { topP: clampedTopP }),
       ...(stopSequences && { stopSequences })
     };
 

@@ -156,6 +156,27 @@ describe('BedrockProvider', () => {
       const body = mockedAxios.post.mock.calls[0][1] as any;
       expect(body.inferenceConfig.temperature).toBe(0);
     });
+
+    it('should clamp temperature > 1.0 to 1.0 (Converse inferenceConfig cap)', async () => {
+      await provider.callWithSystemMessage('p', 's', { authToken: 'k', model: MODEL, temperature: 1.3 });
+
+      const body = mockedAxios.post.mock.calls[0][1] as any;
+      expect(body.inferenceConfig.temperature).toBe(1);
+    });
+
+    it('should clamp topP > 1.0 to 1.0', async () => {
+      await provider.callWithSystemMessage('p', 's', { authToken: 'k', model: MODEL, topP: 1.5 });
+
+      const body = mockedAxios.post.mock.calls[0][1] as any;
+      expect(body.inferenceConfig.topP).toBe(1);
+    });
+
+    it('should clamp a negative temperature to 0', async () => {
+      await provider.callWithSystemMessage('p', 's', { authToken: 'k', model: MODEL, temperature: -0.5 });
+
+      const body = mockedAxios.post.mock.calls[0][1] as any;
+      expect(body.inferenceConfig.temperature).toBe(0);
+    });
   });
 
   describe('response normalization', () => {

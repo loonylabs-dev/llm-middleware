@@ -280,11 +280,12 @@ console.log(`Cost per 1000 calls: ${(response.usage.cost in USD`);
 
 CDPA/GDPR-compliant provider with EU data residency for Google Gemini models. Uses OAuth2 Service Account authentication instead of API keys.
 
-- **EU Data Residency**: Regional endpoints (e.g., `europe-west3` for Frankfurt)
+- **EU Data Residency**: Single regions (e.g., `europe-west3` for Frankfurt) **and** the `eu` multi-region (v2.29.2)
+- **Multi-Region Endpoints** (v2.29.2): `eu` / `us` multi-regions via the `.rep.` hostname — required for the latest GA Flash models (`gemini-3.1-flash-lite`, `gemini-3.5-flash`), which single EU regions do not serve
 - **Service Account Auth**: OAuth2 Bearer Token from Google Cloud Service Account
 - **Reasoning Control**: Full support for Gemini 2.5 (`thinkingBudget`) and Gemini 3 (`thinkingLevel`) with model-aware clamping (v2.24.0) — auto-fallback for unsupported levels on Pro models
 - **Region Rotation** (v2.23.0): Automatic rotation through EU regions on quota errors (429) — uses provider-agnostic `RegionRotationConfig` and `isQuotaError()` utility
-- **Preview Models**: Automatically routed to global endpoint
+- **Preview Models**: Automatically routed to global endpoint (not EU-resident)
 
 **Usage:**
 
@@ -304,12 +305,13 @@ const response = await service.callWithSystemMessage(
 );
 
 // With region rotation on quota errors (v2.23.0)
+// ⚠️ For EU data residency: keep `fallback` an EU region — 'global' leaves the EU.
 const serviceWithRotation = new LLMService({
   vertexAIConfig: {
     regionRotation: {
       regions: ['europe-west3', 'europe-west1', 'europe-west4', 'europe-north1'],
-      fallback: 'global',
-      alwaysTryFallback: true
+      fallback: 'europe-west4',   // EU fallback — NOT 'global' (that would leave the EU)
+      alwaysTryFallback: false    // no bonus hop once EU regions are exhausted
     }
   }
 });
@@ -321,14 +323,27 @@ When Vertex AI returns a 429 quota error, the middleware automatically rotates t
 
 - Retry budget is shared across all regions (not multiplied)
 - Only quota errors (429, "Resource Exhausted") trigger rotation; server errors (500, 503) retry the same region
-- After retry budget is exhausted, one bonus attempt on the fallback region
+- After retry budget is exhausted, one bonus attempt on the fallback region (controlled by `alwaysTryFallback`)
 - Preview models (e.g., `gemini-3-flash-preview`) skip rotation — they always use global
+
+> **⚠️ Data residency warning:** `fallback: 'global'` — and any non-EU region inside `regions` — routes quota-exhausted requests **outside the EU** (no in-region ML processing). For EU data residency, use an **EU region** as `fallback` and set `alwaysTryFallback: false` to suppress the bonus hop. Note: the latest GA Flash models (`gemini-3.1-flash-lite`, `gemini-3.5-flash`) live **only** in the `eu` multi-region — there are no alternate single EU regions to rotate through, so rotation does not apply to them; use `region: 'eu'` with plain retry instead.
+
+**Multi-Region Endpoints (v2.29.2):**
+
+Newer GA models are served only via a multi-region location, not by single regions (live-verified):
+
+| Model | Single EU regions (`europe-west3` …) | `eu` multi-region |
+|---|---|---|
+| `gemini-2.5-flash` | ✅ | ❌ |
+| `gemini-3.1-flash-lite`, `gemini-3.5-flash` | ❌ (404) | ✅ |
+
+Set `region: 'eu'` (or `VERTEX_AI_REGION=eu`) to reach the latest GA Flash models with EU data residency — the provider builds the dedicated multi-region host `https://aiplatform.eu.rep.googleapis.com` automatically. The `eu` multi-region keeps ML processing within the EU (Google's documented data-residency boundary); `global` does not. Preview models (`-preview`) always use `global` and are **not** EU-resident.
 
 **Configuration:**
 
 ```env
 GOOGLE_CLOUD_PROJECT=your_project_id             # Google Cloud Project ID (required)
-VERTEX_AI_REGION=europe-west3                     # Default region (Frankfurt)
+VERTEX_AI_REGION=europe-west3                     # Single region (Frankfurt); use `eu` multi-region for gemini-3.x-flash GA models
 VERTEX_AI_MODEL=gemini-2.5-flash                  # Default model
 GOOGLE_APPLICATION_CREDENTIALS=./service-account.json  # Service Account JSON path
 ```

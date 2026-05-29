@@ -1,3 +1,78 @@
+## [2.29.2] - 2026-05-29
+
+### fix(bedrock): clamp Converse `inferenceConfig.temperature` / `topP` to [0, 1]
+
+AWS Bedrock's Converse API caps the standardized `inferenceConfig.temperature` and
+`topP` at **1.0** (API-wide — this is the inferenceConfig contract, **not** a
+per-model limit; model-native higher ranges would have to go via
+`additionalModelRequestFields`). The provider sent these values unclamped, so a
+consumer passing a Gemini-style range (e.g. `temperature: 1.3`) received a hard
+**HTTP 400** (`Member must have value less than or equal to 1`), which surfaced as
+a `null` response → `"No response received from the LLM provider"`.
+
+#### What Changed
+
+- `bedrock-provider.ts`: `inferenceConfig.temperature` and `topP` are clamped to
+  `[0, 1]` before the request is built. A clamp emits a `warn` log (same pattern as
+  the existing Nova reasoning-param removal) so the adjustment is visible.
+
+#### Why
+
+Consumers share a single provider-agnostic `temperature` across providers (Vertex
+allows up to 2.0). The Bedrock provider owns knowledge of the Converse contract, so
+the cap belongs here — every consumer is protected without re-implementing it.
+
+#### Tests
+
+- `tests/unit/services/llm/providers/bedrock-provider.test.ts` — temperature/topP > 1.0 clamped to 1.0, negative temperature clamped to 0
+
+### fix(vertex): support EU/US multi-region endpoints (`.rep.` hostname)
+
+Gemini 3.1 Flash-Lite and 3.5 Flash (GA) are served on Vertex AI **only via the
+`eu` multi-region**, not by any single EU region (live-verified against a real
+project: single EU regions return 404, the `eu` multi-region returns 200). The
+provider's URL builder only handled single regions
+(`{region}-aiplatform.googleapis.com`) and the `global` endpoint, so
+`region: 'eu'` produced an invalid host. Multi-region locations require the
+dedicated `.rep.` hostname.
+
+#### What Changed
+
+- `VertexAIRegion` type: added `'eu'` and `'us'` multi-region locations
+- `getBaseUrl()`: multi-region (`eu` / `us`) now builds `https://aiplatform.{region}.rep.googleapis.com`; single regions and `global` unchanged
+- New private `isMultiRegion()` helper
+- `v1beta1` (used for ThinkingConfig) is compatible with the `.rep.` host — verified live, no API-version change needed
+
+#### Why
+
+EU data residency for the latest GA Flash models. Single EU regions
+(`europe-west3` etc.) return 404 for `gemini-3.1-flash-lite` / `gemini-3.5-flash`;
+the `eu` multi-region keeps ML processing within the EU (Google's documented
+data-residency boundary). Older models (Gemini 2.5 Flash) remain single-region
+only — keep using `europe-west3` for those. Preview models (`-preview`) still
+force `global` and are not EU-resident.
+
+#### Usage
+
+```ts
+// EU-resident access to the latest GA Flash models
+llmService.callWithSystemMessage(prompt, system, {
+  provider: LLMProvider.VERTEX_AI,
+  model: 'gemini-3.5-flash',
+  region: 'eu',              // or VERTEX_AI_REGION=eu
+});
+```
+
+#### Tests
+
+- `tests/unit/services/llm/providers/vertex-ai-multi-region.test.ts` — URL construction for eu/us multi-region, single region, global, and preview fallback
+
+#### Docs
+
+- Region-rotation example in `docs/LLM_PROVIDERS.md` now uses an **EU fallback** (`europe-west4`, `alwaysTryFallback: false`) instead of `'global'`, with a data-residency warning — `fallback: 'global'` (or a non-EU region in `regions`) silently routes quota-exhausted requests outside the EU.
+
+---
+
 ## [2.29.0] - 2026-05-29
 
 ### feat(azure): Azure OpenAI / Foundry provider via OpenAI-compatible v1 route
