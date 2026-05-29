@@ -1,3 +1,68 @@
+## [2.29.0] - 2026-05-29
+
+### feat(azure): Azure OpenAI / Foundry provider via OpenAI-compatible v1 route
+
+New provider for Azure OpenAI / Microsoft Foundry models. It uses the
+OpenAI-compatible **Chat Completions v1 route** (`{endpoint}/openai/v1/chat/completions`)
+and authenticates with an **Azure API key in the `api-key` header** — not
+`Authorization: Bearer`, which Azure reserves for Microsoft Entra ID tokens. The
+deployment name is sent as the `model` field, so the payload matches a standard
+OpenAI request (mirrors the Requesty provider). All behavior below was **verified
+live** against a real `o4-mini` deployment before implementation.
+
+#### What Changed
+
+- `LLMProvider` enum: added `AZURE_OPENAI = 'azure_openai'`
+- `types/azure-openai.types.ts` (new): OpenAI-compatible request/response types
+- `providers/azure-openai-provider.ts` (new): `AzureOpenAIProvider extends BaseLLMProvider`, registered in `LLMService`
+- `providers/azure-openai-capabilities.ts` (new): reasoning-vs-standard detection + effort mapping
+- Config via env: `AZURE_OPENAI_API_KEY`, `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_DEPLOYMENT`, `AZURE_OPENAI_API_VERSION` (optional)
+- `reasoning_tokens` → `usage.reasoningTokens`; `cached_tokens` → `usage.cacheMetadata`
+- Vision/image input supported via OpenAI `image_url` (same format as Requesty)
+- **Reasoning visibility in the debug log**: new provider-agnostic `LLMDebugInfo.reasoningTokens` renders a **Reasoning Tokens** line in the request log + console (next to **Reasoning Effort**). Important for Azure, which hides the raw reasoning text — the token count is the signal that reasoning actually ran. Populated by the Azure provider; available for other providers to adopt.
+- Smoke test: `npm run test:provider:azure`
+
+#### Reasoning vs. standard models (verified live)
+
+Azure splits cleanly into two model classes that require a **different parameter
+set**. The provider detects the class from the deployment name (override via
+`reasoningModel`) and sends only the valid set:
+
+| | Reasoning (o-series, GPT-5) | Standard (gpt-4o, …) |
+|---|---|---|
+| Token cap | `max_completion_tokens` | `max_tokens` |
+| `temperature` / `top_p` | rejected (HTTP 400) → omitted | sent |
+| `reasoning_effort` | `low`/`medium`/`high` | ignored (warning logged) |
+
+- Verified: `o4-mini` returns **HTTP 400** when `temperature` *or* `max_tokens` is sent.
+- `reasoningEffort: 'none'` is omitted + warned (only gpt-5.1+ accept `none`; o-series reject it).
+
+#### Data residency (EU)
+
+Residency is a deployment-time choice, not enforced by the provider. Use
+`Data Zone Standard` in **Germany West Central** / **Sweden Central** for the EU
+Data Boundary. Partner/community models (e.g. **Kimi K2.5**) are **Global-only** on
+Azure and cannot be EU-resident; the Azure-OpenAI first-party models (gpt-4o,
+o4-mini, gpt-5 series) support Data Zone.
+
+#### Limitations
+
+- Microsoft Entra ID (Bearer/OAuth) auth not yet implemented — API key only
+- Partner/MaaS `/models/` route not yet implemented (many partner models work via v1 as a deployment)
+- Raw reasoning text is not exposed by Azure (token counts only)
+
+#### Tests
+
+- `tests/unit/services/llm/providers/azure-openai-provider.test.ts` — provider (endpoint, api-key auth, payload per model class, response normalization)
+- `tests/unit/services/llm/providers/azure-openai-capabilities.test.ts` — reasoning detection + effort mapping
+
+#### Docs
+
+- New: `docs/AZURE_OPENAI.md` (setup, residency, reasoning/standard split, request/response shape, troubleshooting)
+- Updated: `docs/LLM_PROVIDERS.md`
+
+---
+
 ## [2.28.0] - 2026-05-29
 
 ### feat(bedrock): AWS Bedrock provider via Converse API with central reasoning control

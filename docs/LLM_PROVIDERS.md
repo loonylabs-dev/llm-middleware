@@ -23,14 +23,16 @@ src/middleware/services/llm/
 │   ├── anthropic-provider.ts      # Anthropic implementation (v2.1+)
 │   ├── gemini-provider.ts         # Google Gemini implementation (v2.9+)
 │   ├── requesty-provider.ts       # Requesty.AI implementation (v2.12+)
-│   └── bedrock-provider.ts        # AWS Bedrock implementation (v2.28+)
+│   ├── bedrock-provider.ts        # AWS Bedrock implementation (v2.28+)
+│   └── azure-openai-provider.ts   # Azure OpenAI / Foundry implementation (v2.29+)
 ├── types/
 │   ├── common.types.ts            # Provider-agnostic types
 │   ├── ollama.types.ts            # Ollama-specific types
 │   ├── anthropic.types.ts         # Anthropic-specific types (v2.1+)
 │   ├── gemini.types.ts            # Gemini-specific types (v2.9+)
 │   ├── requesty.types.ts          # Requesty-specific types (v2.12+)
-│   └── bedrock.types.ts           # Bedrock-specific types (v2.28+)
+│   ├── bedrock.types.ts           # Bedrock-specific types (v2.28+)
+│   └── azure-openai.types.ts      # Azure OpenAI-specific types (v2.29+)
 └── llm.service.ts                 # Main orchestrator
 ```
 
@@ -382,6 +384,54 @@ BEDROCK_MODEL=qwen.qwen3-32b-v1:0  # default model id
 
 See **[AWS_BEDROCK.md](AWS_BEDROCK.md)** for authentication strategies, region/model
 availability, the Converse format, and troubleshooting.
+
+### Azure OpenAI / Microsoft Foundry Provider (v2.29+)
+
+Access to Azure OpenAI / Foundry models via the **OpenAI-compatible v1 route**,
+authenticated with an **Azure API key in the `api-key` header** (not
+`Authorization: Bearer`). The deployment name is sent as the `model` field, so the
+payload matches a standard OpenAI request.
+
+**Usage:**
+
+```typescript
+import { llmService, LLMProvider } from '@loonylabs/llm-middleware';
+
+const response = await llmService.callWithSystemMessage(
+  'If a train travels 60 km in 45 minutes, what is its speed in km/h? Number only.',
+  'You are a precise math tutor.',
+  {
+    provider: LLMProvider.AZURE_OPENAI,
+    model: 'o4-mini',          // = deployment name; or process.env.AZURE_OPENAI_DEPLOYMENT
+    maxTokens: 3000,           // → max_completion_tokens for reasoning models
+    reasoningEffort: 'high'    // → reasoning_effort
+  }
+);
+console.log(response?.usage?.reasoningTokens);  // populated for reasoning models
+```
+
+**Environment variables:**
+
+```bash
+AZURE_OPENAI_API_KEY=...                                   # api-key header
+AZURE_OPENAI_ENDPOINT=https://<resource>.openai.azure.com  # resource host (region encoded here)
+AZURE_OPENAI_DEPLOYMENT=o4-mini                            # deployment name (= 'model')
+AZURE_OPENAI_API_VERSION=                                  # optional; empty = v1 route
+```
+
+**Key facts:**
+- Endpoint: `{AZURE_OPENAI_ENDPOINT}/openai/v1/chat/completions` (api-version optional).
+- **Reasoning vs. standard models take different params (verified live):** reasoning
+  models (o-series, GPT-5) use `max_completion_tokens` and **reject** `temperature`/`max_tokens`
+  (HTTP 400); standard models (gpt-4o…) use `max_tokens` + `temperature`. The provider
+  detects the class by deployment name (override via `reasoningModel`).
+- `reasoning_tokens` → `usage.reasoningTokens`; `cached_tokens` → `usage.cacheMetadata`.
+- **EU data residency** is a deployment-time choice (`Data Zone Standard` in Germany West
+  Central / Sweden Central). Partner models like Kimi K2.5 are **Global-only** (not EU-resident).
+- Not yet supported: Entra ID auth, the partner `/models/` MaaS route.
+
+See **[AZURE_OPENAI.md](AZURE_OPENAI.md)** for setup, residency, the reasoning/standard
+split, request/response shape, and troubleshooting.
 
 ### OpenAI (Coming in v2.2)
 

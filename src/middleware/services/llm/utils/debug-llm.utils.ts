@@ -152,6 +152,10 @@ export class LLMDebugger {
         console.log(this.formatMessage(debugInfo.thinking));
       }
 
+      if (debugInfo.reasoningTokens !== undefined) {
+        console.log(`\n🧠 Reasoning Tokens: ${debugInfo.reasoningTokens}`);
+      }
+
       // Show key metrics from raw response data
       if (debugInfo.rawResponseData) {
         console.log('\n⏱️  RESPONSE METRICS:');
@@ -236,6 +240,7 @@ export class LLMDebugger {
 - **Base URL**: ${debugInfo.baseUrl}
 ${debugInfo.temperature !== undefined ? `- **Temperature**: ${debugInfo.temperature}` : ''}
 ${debugInfo.reasoningEffort ? `- **Reasoning Effort**: ${debugInfo.reasoningEffort}` : ''}
+${debugInfo.reasoningTokens !== undefined ? `- **Reasoning Tokens**: ${debugInfo.reasoningTokens}` : ''}
 
 ## Request Information
 - **Request Timestamp**: ${debugInfo.timestamp.toISOString()}

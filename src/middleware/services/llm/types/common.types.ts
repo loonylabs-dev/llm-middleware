@@ -169,7 +169,9 @@ export enum LLMProvider {
   /** Google Vertex AI - Service Account auth, EU hosting support */
   VERTEX_AI = 'vertex_ai',
   /** AWS Bedrock - Bearer token (API key) auth via Converse API, EU hosting support */
-  BEDROCK = 'bedrock'
+  BEDROCK = 'bedrock',
+  /** Azure OpenAI / Microsoft Foundry - api-key auth via OpenAI-compatible v1 route, EU data-zone support */
+  AZURE_OPENAI = 'azure_openai'
 }
 
 /**
@@ -207,4 +209,12 @@ export interface LLMDebugInfo {
   // Request parameters for logging (since 2.17.0)
   temperature?: number;
   reasoningEffort?: ReasoningEffort;
+
+  /**
+   * Reasoning/thinking tokens reported by the model (output side, since 2.29.0).
+   * Surfaced in the log so you can see whether reasoning actually happened — useful
+   * for providers that hide the raw reasoning text (e.g. Azure o-series exposes only
+   * the token count). Distinct from `reasoningEffort` (the requested input level).
+   */
+  reasoningTokens?: number;
 }
