@@ -43,7 +43,7 @@
   - ✅ **Ollama**: Fully supported with comprehensive parameter control
   - ✅ **Anthropic Claude**: Complete support for Claude models (Opus, Sonnet, Haiku)
   - ✅ **Google Gemini Direct**: Complete support for Gemini models via API Key
-  - ✅ **Google Vertex AI**: CDPA/GDPR-compliant with EU data residency (Service Account auth)
+  - ✅ **Google Vertex AI**: CDPA/GDPR-compliant with EU data residency (Service Account auth); `eu`/`us` multi-region support for the latest GA Flash models — **v2.29.2**
   - ✅ **Requesty.AI**: 300+ models via unified API, built-in cost tracking
   - ✅ **AWS Bedrock**: Converse API via Bearer-token auth (no AWS SDK); Claude, Nova, Qwen, GLM, Kimi, DeepSeek, gpt-oss — with central `reasoningEffort` control — **v2.28.0**
   - ✅ **Azure OpenAI / Foundry**: OpenAI-compatible v1 route with `api-key` auth; o-series/GPT-5 reasoning vs. gpt-4o standard auto-handled; EU data-zone residency — **v2.29.0**
@@ -200,7 +200,7 @@ const response3b = await llmService.call(
     provider: LLMProvider.VERTEX_AI,
     model: "gemini-2.5-flash",
     // Uses Service Account auth (GOOGLE_APPLICATION_CREDENTIALS)
-    // Region defaults to europe-west3 (Frankfurt)
+    // Region defaults to europe-west3 (Frankfurt); use region: 'eu' (multi-region) for gemini-3.1-flash-lite / gemini-3.5-flash
     reasoningEffort: 'medium'  // Control thinking effort
   }
 );
@@ -367,7 +367,7 @@ GEMINI_MODEL=gemini-1.5-pro                      # Default Gemini model
 
 # Google Vertex AI Configuration (Optional - for CDPA/GDPR compliance)
 GOOGLE_CLOUD_PROJECT=your_project_id             # Google Cloud Project ID
-VERTEX_AI_REGION=europe-west3                    # EU region (Frankfurt)
+VERTEX_AI_REGION=europe-west3                    # Single EU region (Frankfurt); use 'eu' multi-region for gemini-3.x-flash GA models
 VERTEX_AI_MODEL=gemini-2.5-flash                 # Default Vertex AI model
 GOOGLE_APPLICATION_CREDENTIALS=./vertex-ai-service-account.json  # Service Account
 ```
