@@ -154,6 +154,16 @@ const standard = await llmService.callWithSystemMessage(
 token count is returned), so `message.thinking` is normally empty for o-series;
 partner models that inline `<think>` tags are still parsed by the ThinkingExtractor.
 
+> **Debugging — "did reasoning run?"** Since the raw reasoning text is hidden, the
+> debug log surfaces the **reasoning token count** instead. With `DEBUG_LLM_REQUESTS=true`
+> (or `NODE_ENV=development`), the request log shows both the requested input and the
+> returned output under *Provider Information*:
+>
+> ```
+> - **Reasoning Effort**: high      # what was requested (input)
+> - **Reasoning Tokens**: 64        # what came back (output) — proof reasoning ran
+> ```
+
 ## Reasoning effort mapping
 
 The provider exposes the model-agnostic `reasoningEffort` (`none|low|medium|high`,

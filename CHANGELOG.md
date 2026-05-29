@@ -19,6 +19,7 @@ live** against a real `o4-mini` deployment before implementation.
 - Config via env: `AZURE_OPENAI_API_KEY`, `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_DEPLOYMENT`, `AZURE_OPENAI_API_VERSION` (optional)
 - `reasoning_tokens` → `usage.reasoningTokens`; `cached_tokens` → `usage.cacheMetadata`
 - Vision/image input supported via OpenAI `image_url` (same format as Requesty)
+- **Reasoning visibility in the debug log**: new provider-agnostic `LLMDebugInfo.reasoningTokens` renders a **Reasoning Tokens** line in the request log + console (next to **Reasoning Effort**). Important for Azure, which hides the raw reasoning text — the token count is the signal that reasoning actually ran. Populated by the Azure provider; available for other providers to adopt.
 - Smoke test: `npm run test:provider:azure`
 
 #### Reasoning vs. standard models (verified live)

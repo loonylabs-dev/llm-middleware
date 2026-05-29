@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { AzureOpenAIProvider } from '../../../../../src/middleware/services/llm/providers/azure-openai-provider';
+import { LLMDebugger } from '../../../../../src/middleware/services/llm/utils/debug-llm.utils';
 
 // Mock axios
 jest.mock('axios');
@@ -267,6 +268,26 @@ describe('AzureOpenAIProvider', () => {
       mockedAxios.post.mockResolvedValue({ status: 500, data: { error: { message: 'server error' } } });
       const response = await provider.callWithSystemMessage('p', 's', { authToken: 'k', endpoint: ENDPOINT, model: REASONING_MODEL });
       expect(response).toBeNull();
+    });
+  });
+
+  describe('debug logging — reasoning visibility', () => {
+    it('puts reasoningEffort (input) and reasoningTokens (output) into the debug log info', async () => {
+      mockedAxios.post.mockResolvedValue(baseResponse({
+        usage: {
+          prompt_tokens: 13, completion_tokens: 84, total_tokens: 97,
+          completion_tokens_details: { reasoning_tokens: 64 }
+        }
+      }));
+
+      await provider.callWithSystemMessage('p', 's', {
+        authToken: 'k', endpoint: ENDPOINT, model: REASONING_MODEL, reasoningEffort: 'high'
+      });
+
+      const logResponseMock = (LLMDebugger as unknown as { logResponse: jest.Mock }).logResponse;
+      const debugInfoArg = logResponseMock.mock.calls[0][0];
+      expect(debugInfoArg.reasoningEffort).toBe('high');
+      expect(debugInfoArg.reasoningTokens).toBe(64);
     });
   });
 

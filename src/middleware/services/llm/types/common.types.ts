@@ -209,4 +209,12 @@ export interface LLMDebugInfo {
   // Request parameters for logging (since 2.17.0)
   temperature?: number;
   reasoningEffort?: ReasoningEffort;
+
+  /**
+   * Reasoning/thinking tokens reported by the model (output side, since 2.29.0).
+   * Surfaced in the log so you can see whether reasoning actually happened — useful
+   * for providers that hide the raw reasoning text (e.g. Azure o-series exposes only
+   * the token count). Distinct from `reasoningEffort` (the requested input level).
+   */
+  reasoningTokens?: number;
 }

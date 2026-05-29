@@ -300,6 +300,11 @@ export class AzureOpenAIProvider extends BaseLLMProvider {
         if (thinking) {
           debugInfo.thinking = thinking;
         }
+        // Surface reasoning token count in the log. Azure hides the raw reasoning
+        // text for o-series, so this is the signal that reasoning actually happened.
+        if (reasoningTokens !== undefined) {
+          debugInfo.reasoningTokens = reasoningTokens;
+        }
 
         await LLMDebugger.logResponse(debugInfo);
 
