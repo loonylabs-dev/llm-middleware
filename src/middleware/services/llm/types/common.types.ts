@@ -169,7 +169,9 @@ export enum LLMProvider {
   /** Google Vertex AI - Service Account auth, EU hosting support */
   VERTEX_AI = 'vertex_ai',
   /** AWS Bedrock - Bearer token (API key) auth via Converse API, EU hosting support */
-  BEDROCK = 'bedrock'
+  BEDROCK = 'bedrock',
+  /** Azure OpenAI / Microsoft Foundry - api-key auth via OpenAI-compatible v1 route, EU data-zone support */
+  AZURE_OPENAI = 'azure_openai'
 }
 
 /**

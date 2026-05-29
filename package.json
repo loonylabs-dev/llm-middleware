@@ -1,6 +1,6 @@
 {
   "name": "@loonylabs/llm-middleware",
-  "version": "2.28.0",
+  "version": "2.29.0",
   "description": "Complete middleware infrastructure for LLM-based backends with multi-provider support (Ollama, Anthropic, OpenAI, Google)",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -27,6 +27,7 @@
     "test:provider:requesty": "TEST_PROVIDER=requesty ts-node tests/manual/provider-smoke-test.ts",
     "test:provider:vertex": "ts-node tests/manual/vertex-ai-smoke-test.ts",
     "test:provider:bedrock": "TEST_PROVIDER=bedrock ts-node tests/manual/provider-smoke-test.ts",
+    "test:provider:azure": "TEST_PROVIDER=azure ts-node tests/manual/provider-smoke-test.ts",
     "test:vertex:smoke": "ts-node tests/manual/vertex-ai-smoke-test.ts",
     "test:integration:reasoning": "LLM_INTEGRATION_TESTS=true jest tests/integration/reasoning-control.integration.test.ts --testTimeout=120000",
     "test:live": "LLM_INTEGRATION_TESTS=true jest tests/integration/*.integration.test.ts --testTimeout=120000",

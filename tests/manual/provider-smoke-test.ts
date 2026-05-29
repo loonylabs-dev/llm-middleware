@@ -50,9 +50,17 @@ switch (providerName) {
     apiKey = process.env.BEDROCK_API_KEY;
     break;
 
+  case 'azure':
+  case 'azure_openai':
+    provider = LLMProvider.AZURE_OPENAI;
+    modelName = process.env.AZURE_OPENAI_DEPLOYMENT || 'o4-mini';
+    apiKey = process.env.AZURE_OPENAI_API_KEY;
+    baseUrl = process.env.AZURE_OPENAI_ENDPOINT;  // provider reads endpoint from baseUrl
+    break;
+
   default:
     console.error(`❌ Unknown provider: ${providerName}`);
-    console.log('Available providers: ollama, anthropic, requesty, bedrock');
+    console.log('Available providers: ollama, anthropic, requesty, bedrock, azure');
     process.exit(1);
 }
 
