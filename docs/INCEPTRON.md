@@ -82,13 +82,19 @@ GLM-5.1 is a reasoning model. Verified live against `zai-org/GLM-5.1-FP8`:
   provider-agnostic **`message.thinking`**.
 - **`message.content` can be `null`.** When `reasoning_effort` is **omitted**, the
   visible answer is **non-deterministic** — sometimes the whole answer stays in
-  `reasoning` and `content` comes back empty. **Setting an explicit effort (even
-  `none`) reliably populates `content`.**
+  `reasoning` and `content` comes back empty.
 
-> The provider therefore **always sends `reasoning_effort`, defaulting to
-> `'none'`** when the caller does not specify one. `'none'` = clean, fast,
-> deterministic content with no reasoning-token overhead. Opt into reasoning by
-> passing `reasoningEffort: 'low' | 'medium' | 'high'`.
+> The provider **always sends `reasoning_effort`, defaulting to `'none'`** when the
+> caller does not specify one. Opt into reasoning by passing
+> `reasoningEffort: 'low' | 'medium' | 'high'`.
+
+> ⚠️ **GLM-5.1-FP8 correction (verified 2026-05-30): `'none'` is NOT safe for this
+> model — the earlier "explicit effort reliably populates content" note was wrong.**
+> At `reasoning_effort: 'none'` GLM-5.1 still reasons internally but **discards the
+> visible answer**: `content` comes back `null` with `finish_reason: "stop"` while
+> the tokens are burned in `reasoning` (or nothing). Its **effective minimum is
+> `'low'`**. Even at `'low'` an occasional empty response still occurs — average
+> over multiple samples. See "GLM-5.1-FP8 stability envelope" below.
 
 ```typescript
 // Reasoning on; thinking text surfaces in response.message.thinking
@@ -100,9 +106,42 @@ const res = await llmService.callWithSystemMessage(prompt, system, {
 console.log(res?.message.thinking); // the reasoning channel
 ```
 
-> ⚠️ At `reasoning_effort: 'high'`, GLM-5.1 occasionally leaks reasoning into
-> `content`. If `content` comes back empty while `reasoning` is present, the
-> provider emits a warning; prefer `'none'`/`'medium'` or raise `maxTokens`.
+> ⚠️ Reasoning-into-`content` leakage and output degeneration are driven primarily
+> by **temperature**, not by the effort level — see the stability envelope below.
+> When `content` is empty while `reasoning` is present, the provider logs a warning.
+
+## GLM-5.1-FP8 stability envelope (verified 2026-05-30)
+
+`zai-org/GLM-5.1-FP8` is **sensitive to both temperature and reasoning effort**.
+Outside a narrow envelope it degenerates: garbled multi-script output (CJK / Cyrillic
+fragments), runaway repetition loops, leaked `<think>…</think>` markers inside
+`content`, or `content: null` after a long `reasoning` block. Two independent axes:
+
+**Temperature** — probed at fixed `reasoning_effort: 'low'`, ~250-word German prose,
+`max_tokens: 4000`:
+
+| temperature | result |
+|---|---|
+| 0.3 | 3/3 clean |
+| 0.5 | 2/3 clean (1× empty `content`) |
+| **0.7** | **3/3 clean** |
+| 1.0 | **0/3** — garbage script / repetition loop / empty / leaked `</think>` |
+
+→ The degeneration cliff sits **between 0.7 and 1.0**. Keep GLM-5.1 at
+**`temperature ≤ 0.7`**. High-temperature creative settings (`1.0`) reliably break it
+— this also explains structured-output failures (a heavy German "concept→JSON" call
+at `temperature: 1.0` collapsed mid-reasoning and returned `content: null`).
+
+**Reasoning effort** — `'none'` frequently yields empty `content`; use
+**`reasoning_effort ≥ 'low'`** (see correction above).
+
+**Recommended operating envelope:** `temperature ≤ 0.7` **and**
+`reasoning_effort ≥ 'low'`. Even inside it, expect an occasional empty response →
+average over n > 1.
+
+> The middleware does **not** clamp these itself — it stays model-agnostic. Enforce
+> the envelope in the consumer via per-model config (e.g. a `minReasoningEffort` floor
+> + `maxTemperature` ceiling clamped onto the request before the call).
 
 ## Token usage caveats
 
@@ -113,16 +152,29 @@ The `usage` block returns only `prompt_tokens` / `completion_tokens` /
   (like Ollama); `usage.reasoningTokens` is **not** populated.
 - **No `cost`** field (unlike Requesty).
 - `prompt_tokens_details.cached_tokens` → `usage.cacheMetadata.cacheReadTokens`
-  when present (caching is priced on the dashboard but was observed as `null` in
-  testing).
+  when present. **Implicit prompt caching is active** — verified 2026-05-30 on a
+  repeated large prompt: `cached_tokens: 3200` of `prompt_tokens: 3204` (the earlier
+  `null` observation was for a cold/short prompt).
 
 ## Limitations / follow-ups
 
 - **Vision/image input:** untested; the provider sends OpenAI `image_url` parts
   (same as Requesty) but image support per model is unverified.
 - **Tool use:** not wired up.
-- **Rate limits:** `429` occurs on rapid successive calls; handled by the shared
-  `retryWithBackoff` (respects `Retry-After`).
+- **Rate / usage limits:** `429` on rapid bursts (handled by the shared
+  `retryWithBackoff`, respects `Retry-After`). After **sustained heavy usage** the
+  key may instead start returning **`401`** — observed 2026-05-30 after ~100+ calls
+  in a day. This is an **account usage/quota limit on the key, not an auth
+  misconfiguration**: wait for the quota window to reset or raise the key tier.
+  (Under jsdom the same `401` was previously masked as a generic `ERR_NETWORK` —
+  see transport note.)
+- **Transport (jsdom / test environments) — fixed in 2.30.1:** axios auto-selects
+  the **XHR adapter** whenever `XMLHttpRequest` exists (e.g. a Vitest/Jest
+  `environment: 'jsdom'` setup), which fails real external HTTPS with a generic
+  **`ERR_NETWORK` ("Network Error", no response)** and masks the real status. The
+  provider now pins **`adapter: 'http'`** so it always uses the Node transport.
+  Consumers on older versions running under jsdom must either upgrade or switch the
+  test environment to `node`.
 
 ## Testing
 
