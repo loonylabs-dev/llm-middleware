@@ -2,7 +2,7 @@
 
 # 🚀 LLM Middleware
 
-*A comprehensive TypeScript middleware library for building robust multi-provider LLM backends. Currently supports Ollama, Anthropic Claude, Google Gemini (Direct API & Vertex AI), Requesty.AI (300+ models), AWS Bedrock, and Azure OpenAI / Foundry. Features EU data residency via Vertex AI / Bedrock / Azure data zones, reasoning control, advanced JSON cleaning, logging, error handling, cost tracking, and more.*
+*A comprehensive TypeScript middleware library for building robust multi-provider LLM backends. Currently supports Ollama, Anthropic Claude, Google Gemini (Direct API & Vertex AI), Requesty.AI (300+ models), AWS Bedrock, Azure OpenAI / Foundry, and Inceptron. Features EU data residency via Vertex AI / Bedrock / Azure data zones, reasoning control, advanced JSON cleaning, logging, error handling, cost tracking, and more.*
 
 <!-- Horizontal Badge Navigation Bar -->
 [![npm version](https://img.shields.io/npm/v/@loonylabs/llm-middleware.svg?style=for-the-badge&logo=npm&logoColor=white)](https://www.npmjs.com/package/@loonylabs/llm-middleware)
@@ -47,6 +47,7 @@
   - ✅ **Requesty.AI**: 300+ models via unified API, built-in cost tracking
   - ✅ **AWS Bedrock**: Converse API via Bearer-token auth (no AWS SDK); Claude, Nova, Qwen, GLM, Kimi, DeepSeek, gpt-oss — with central `reasoningEffort` control — **v2.28.0**
   - ✅ **Azure OpenAI / Foundry**: OpenAI-compatible v1 route with `api-key` auth; o-series/GPT-5 reasoning vs. gpt-4o standard auto-handled; EU data-zone residency — **v2.29.0**
+  - ✅ **Inceptron**: OpenAI-compatible Bearer-token auth (Inceptron AB, Sweden); curated open-weight models (GLM-5.1, Kimi, DeepSeek, gpt-oss); `reasoning`→thinking mapping; per-model EU residency — **v2.30.0**
   - 🔌 **Pluggable**: Easy to add custom providers - see [LLM Providers Guide](docs/LLM_PROVIDERS.md)
 - 👁️ **Vision / Multimodal Input**: Send images alongside text to LLM providers
   - ✨ **v2.22.0**: Provider-agnostic `MultimodalContent` type (`string | ContentPart[]`)

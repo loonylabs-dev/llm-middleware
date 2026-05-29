@@ -58,9 +58,16 @@ switch (providerName) {
     baseUrl = process.env.AZURE_OPENAI_ENDPOINT;  // provider reads endpoint from baseUrl
     break;
 
+  case 'inceptron':
+    provider = LLMProvider.INCEPTRON;
+    modelName = process.env.INCEPTRON_MODEL || 'zai-org/GLM-5.1-FP8';
+    apiKey = process.env.INCEPTRON_API_KEY;
+    baseUrl = process.env.INCEPTRON_BASE_URL;  // optional; provider has a default
+    break;
+
   default:
     console.error(`❌ Unknown provider: ${providerName}`);
-    console.log('Available providers: ollama, anthropic, requesty, bedrock, azure');
+    console.log('Available providers: ollama, anthropic, requesty, bedrock, azure, inceptron');
     process.exit(1);
 }
 
@@ -131,6 +138,9 @@ async function runProviderSmokeTest() {
         ...(baseUrl && { baseUrl }),
         ...(apiKey && { authToken: apiKey }),
         ...((provider === LLMProvider.ANTHROPIC || provider === LLMProvider.BEDROCK) && { maxTokens: 1024 }),
+        // Inceptron mostly serves reasoning models (GLM-5.1, DeepSeek-R1); give a
+        // generous budget so any reasoning tokens never starve the visible answer.
+        ...(provider === LLMProvider.INCEPTRON && { maxTokens: 4096 }),
         debugContext: 'provider-smoke-test',
         sessionId: `smoke-${provider}-${Date.now()}`
       }

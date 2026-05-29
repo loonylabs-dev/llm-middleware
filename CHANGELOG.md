@@ -1,3 +1,49 @@
+## [2.30.0] - 2026-05-29
+
+### feat(inceptron): add Inceptron provider via OpenAI-compatible API
+
+New provider for [Inceptron](https://www.inceptron.io/) (Inceptron AB, Lund/Sweden),
+a compiler-accelerated inference platform serving curated open-weight models
+(GLM-5.1, Kimi, DeepSeek, gpt-oss, MiniMax, Llama) through the OpenAI-compatible
+Chat Completions API with **Bearer-token** auth. Modeled on the Requesty provider.
+
+#### What Changed
+
+- New `InceptronProvider` (`LLMProvider.INCEPTRON`), types, env vars
+  (`INCEPTRON_API_KEY` / `INCEPTRON_BASE_URL` / `INCEPTRON_MODEL`), smoke-test case,
+  and `npm run test:provider:inceptron`.
+- Endpoint defaults to `https://openrouter.inceptron.io/v1` (the dashboard
+  quickstart host), overridable via `INCEPTRON_BASE_URL`.
+
+#### Live-verified behavior (against `zai-org/GLM-5.1-FP8`)
+
+- **Reasoning text returns in `message.reasoning`** (OpenRouter style, not
+  `reasoning_content`/`thinking`) → mapped to the provider-agnostic
+  `message.thinking`.
+- **`message.content` can be `null`.** Without an explicit `reasoning_effort` the
+  visible answer is non-deterministic (sometimes empty, all text in `reasoning`).
+  The provider therefore **always sends `reasoning_effort`, defaulting to `'none'`**
+  (clean, deterministic content; reasoning is opt-in). `none`/`low`/`medium`/`high`
+  are all accepted (1:1 mapping). A `warn` is logged when content is empty while
+  reasoning is present.
+- `usage` carries **no** `reasoning_tokens`/`cost` (reasoning folded into
+  `completion_tokens`, like Ollama); `prompt_tokens_details.cached_tokens` →
+  `usage.cacheMetadata.cacheReadTokens` when present.
+
+#### EU data residency
+
+Per-model, not a global toggle: GLM-5.1 is marked EU-resident (ISO 27001). Default
+processing is **not** EU-only ("EU, UK, or USA"); zero-retention is on by default.
+DPA & SCCs are available on request (`support@inceptron.io`) — required for formal
+GDPR processor coverage.
+
+#### Tests
+
+- `tests/unit/services/llm/providers/inceptron-provider.test.ts` — 26 tests
+  (reasoning-field mapping, null-content handling, reasoning_effort default/mapping,
+  usage normalization, empty-content warning).
+- Live smoke verified end-to-end via `LLMService`. Full suite green (571 tests).
+
 ## [2.29.2] - 2026-05-29
 
 ### fix(bedrock): clamp Converse `inferenceConfig.temperature` / `topP` to [0, 1]

@@ -171,7 +171,9 @@ export enum LLMProvider {
   /** AWS Bedrock - Bearer token (API key) auth via Converse API, EU hosting support */
   BEDROCK = 'bedrock',
   /** Azure OpenAI / Microsoft Foundry - api-key auth via OpenAI-compatible v1 route, EU data-zone support */
-  AZURE_OPENAI = 'azure_openai'
+  AZURE_OPENAI = 'azure_openai',
+  /** Inceptron (Inceptron AB, Sweden) - Bearer token auth via OpenAI-compatible API, per-model EU residency */
+  INCEPTRON = 'inceptron'
 }
 
 /**

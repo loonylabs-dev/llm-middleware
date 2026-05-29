@@ -24,7 +24,8 @@ src/middleware/services/llm/
 │   ├── gemini-provider.ts         # Google Gemini implementation (v2.9+)
 │   ├── requesty-provider.ts       # Requesty.AI implementation (v2.12+)
 │   ├── bedrock-provider.ts        # AWS Bedrock implementation (v2.28+)
-│   └── azure-openai-provider.ts   # Azure OpenAI / Foundry implementation (v2.29+)
+│   ├── azure-openai-provider.ts   # Azure OpenAI / Foundry implementation (v2.29+)
+│   └── inceptron-provider.ts      # Inceptron implementation (v2.30+)
 ├── types/
 │   ├── common.types.ts            # Provider-agnostic types
 │   ├── ollama.types.ts            # Ollama-specific types
@@ -32,7 +33,8 @@ src/middleware/services/llm/
 │   ├── gemini.types.ts            # Gemini-specific types (v2.9+)
 │   ├── requesty.types.ts          # Requesty-specific types (v2.12+)
 │   ├── bedrock.types.ts           # Bedrock-specific types (v2.28+)
-│   └── azure-openai.types.ts      # Azure OpenAI-specific types (v2.29+)
+│   ├── azure-openai.types.ts      # Azure OpenAI-specific types (v2.29+)
+│   └── inceptron.types.ts         # Inceptron-specific types (v2.30+)
 └── llm.service.ts                 # Main orchestrator
 ```
 
@@ -447,6 +449,53 @@ AZURE_OPENAI_API_VERSION=                                  # optional; empty = v
 
 See **[AZURE_OPENAI.md](AZURE_OPENAI.md)** for setup, residency, the reasoning/standard
 split, request/response shape, and troubleshooting.
+
+### Inceptron Provider (v2.30+)
+
+Access to [Inceptron](https://www.inceptron.io/) (Inceptron AB, Lund/Sweden) — a
+compiler-accelerated inference platform serving curated **open-weight models**
+(GLM-5.1, Kimi, DeepSeek, gpt-oss, MiniMax, Llama) via the **OpenAI-compatible
+Chat Completions API**, authenticated with a **Bearer token**. Modeled on the
+Requesty provider.
+
+**Usage:**
+
+```typescript
+import { llmService, LLMProvider } from '@loonylabs/llm-middleware';
+
+const response = await llmService.callWithSystemMessage(
+  'Summarize the CAP theorem in two sentences.',
+  'You are a concise assistant.',
+  {
+    provider: LLMProvider.INCEPTRON,
+    model: 'zai-org/GLM-5.1-FP8',   // exact id incl. quantization suffix; or process.env.INCEPTRON_MODEL
+    reasoningEffort: 'medium'       // optional; default 'none'. Thinking text → response.message.thinking
+  }
+);
+console.log(response?.message.thinking);  // reasoning channel (when reasoningEffort != 'none')
+```
+
+**Environment variables:**
+
+```bash
+INCEPTRON_API_KEY=...                                   # Bearer token (Authorization header)
+INCEPTRON_BASE_URL=https://openrouter.inceptron.io/v1   # dashboard quickstart host (default)
+INCEPTRON_MODEL=zai-org/GLM-5.1-FP8                     # default model id (EU-resident)
+```
+
+**Key facts (verified live against `zai-org/GLM-5.1-FP8`):**
+- Endpoint: `{INCEPTRON_BASE_URL}/chat/completions`. The dashboard quickstart uses
+  `openrouter.inceptron.io/v1` (not the `api.inceptron.io/v1` of the public docs).
+- **Reasoning text returns in `message.reasoning`** (OpenRouter style) → mapped to
+  `message.thinking`. `reasoning_effort` accepts `none`/`low`/`medium`/`high` (1:1).
+- **`content` can be `null`.** Without an explicit `reasoning_effort` the visible
+  answer is non-deterministic, so the provider **always sends one (default `none`)**.
+- `usage` has **no** `reasoning_tokens`/`cost`; `cached_tokens` → `usage.cacheMetadata`.
+- **EU data residency is per-model** (GLM-5.1 is EU-resident, ISO 27001). Default
+  processing is not EU-only; zero-retention is on by default. **DPA & SCCs on request.**
+
+See **[INCEPTRON.md](INCEPTRON.md)** for setup, residency/DPA details, the reasoning
+behavior, token-usage caveats, and testing.
 
 ### OpenAI (Coming in v2.2)
 
