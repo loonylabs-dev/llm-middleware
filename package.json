@@ -36,7 +36,7 @@
     "test:cache:smoke": "ts-node tests/manual/cache-smoke-test.ts",
     "test:vision:smoke": "ts-node tests/manual/vision-smoke-test.ts",
     "test:ci": "jest --runInBand --ci --coverage",
-    "lint": "eslint src/**/*.ts",
+    "lint": "eslint \"src/**/*.ts\"",
     "clean": "node -e \"const fs=require('fs');if(fs.existsSync('dist'))fs.rmSync('dist',{recursive:true})\"",
     "prepare": "npm run build",
     "prepublishOnly": "npm run clean && npm run build && npm run test"
