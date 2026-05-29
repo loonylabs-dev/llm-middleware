@@ -1,7 +1,7 @@
 {
   "name": "@loonylabs/llm-middleware",
   "version": "2.30.0",
-  "description": "Complete middleware infrastructure for LLM-based backends with multi-provider support (Ollama, Anthropic, OpenAI, Google)",
+  "description": "Complete middleware infrastructure for LLM-based backends with multi-provider support (Ollama, Anthropic, Google Gemini & Vertex AI, Requesty, AWS Bedrock, Azure OpenAI / Foundry, Inceptron)",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
@@ -51,6 +51,10 @@
     "google",
     "vertex-ai",
     "gemini",
+    "requesty",
+    "bedrock",
+    "azure-openai",
+    "inceptron",
     "multi-provider",
     "backend",
     "typescript",
