@@ -22,13 +22,15 @@ src/middleware/services/llm/
 │   ├── ollama-provider.ts         # Ollama implementation (v2.0+)
 │   ├── anthropic-provider.ts      # Anthropic implementation (v2.1+)
 │   ├── gemini-provider.ts         # Google Gemini implementation (v2.9+)
-│   └── requesty-provider.ts       # Requesty.AI implementation (v2.12+)
+│   ├── requesty-provider.ts       # Requesty.AI implementation (v2.12+)
+│   └── bedrock-provider.ts        # AWS Bedrock implementation (v2.28+)
 ├── types/
 │   ├── common.types.ts            # Provider-agnostic types
 │   ├── ollama.types.ts            # Ollama-specific types
 │   ├── anthropic.types.ts         # Anthropic-specific types (v2.1+)
 │   ├── gemini.types.ts            # Gemini-specific types (v2.9+)
-│   └── requesty.types.ts          # Requesty-specific types (v2.12+)
+│   ├── requesty.types.ts          # Requesty-specific types (v2.12+)
+│   └── bedrock.types.ts           # Bedrock-specific types (v2.28+)
 └── llm.service.ts                 # Main orchestrator
 ```
 
@@ -334,6 +336,52 @@ GOOGLE_APPLICATION_CREDENTIALS=./service-account.json  # Service Account JSON pa
 2. `serviceAccountKeyPath` option (file path)
 3. `GOOGLE_APPLICATION_CREDENTIALS` env var (standard Google Cloud)
 4. `VERTEX_AI_SERVICE_ACCOUNT_KEY` env var (JSON string)
+
+### AWS Bedrock Provider (v2.28+)
+
+Provider-agnostic access to AWS Bedrock foundation models (Claude, Nova, Llama,
+Qwen, MiniMax, GLM, …) via the **Converse API**, authenticated with a **Bedrock
+API key as a Bearer token** — no AWS SDK or SigV4 signing. Switching models is just
+a different `model` id.
+
+**Usage:**
+
+```typescript
+import { llmService, LLMProvider } from '@loonylabs/llm-middleware';
+
+const response = await llmService.callWithSystemMessage(
+  'Summarize the EU AI Act in two sentences.',
+  'You are a precise assistant.',
+  {
+    provider: LLMProvider.BEDROCK,
+    model: 'qwen.qwen3-32b-v1:0',  // or process.env.BEDROCK_MODEL
+    temperature: 0.5,
+    maxTokens: 1024
+  }
+);
+```
+
+**Environment variables:**
+
+```bash
+BEDROCK_API_KEY=ABSK...            # Bedrock API key (bearer token)
+BEDROCK_REGION=eu-central-1        # Frankfurt = EU data residency (default)
+BEDROCK_MODEL=qwen.qwen3-32b-v1:0  # default model id
+```
+
+**Key facts:**
+- Endpoint: `https://bedrock-runtime.{region}.amazonaws.com/model/{modelId}/converse`
+- Model availability is per region; some models need an `eu.`-prefixed cross-region
+  inference profile id. List available models with `ListFoundationModels`.
+- Native `reasoningContent` → `response.message.thinking`; cache tokens →
+  `usage.cacheMetadata`.
+- **Reasoning control** via the provider-agnostic `reasoningEffort` (low/med/high),
+  mapped per model family (`reasoning_effort` for Qwen/Kimi/gpt-oss/GLM/DeepSeek,
+  `reasoningConfig` for Nova). See AWS_BEDROCK.md → "Reasoning control".
+- Not yet supported: Claude reasoning mapping, image input, region rotation.
+
+See **[AWS_BEDROCK.md](AWS_BEDROCK.md)** for authentication strategies, region/model
+availability, the Converse format, and troubleshooting.
 
 ### OpenAI (Coming in v2.2)
 

@@ -10,3 +10,4 @@ export * from './anthropic.types';
 export * from './gemini.types';
 export * from './requesty.types';
 export * from './vertex-ai.types';
+export * from './bedrock.types';
