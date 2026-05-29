@@ -9,6 +9,7 @@ export * from './requesty-provider';
 export * from './bedrock-provider';
 export * from './azure-openai-provider';
 export * from './azure-openai-capabilities';
+export * from './inceptron-provider';
 
 // Future providers will be added here:
 // export * from './openai-provider';
