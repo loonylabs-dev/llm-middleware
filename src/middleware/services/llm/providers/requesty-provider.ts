@@ -217,7 +217,11 @@ export class RequestyProvider extends BaseLLMProvider {
           requestPayload,
           {
             headers,
-            timeout: 180000 // 180 second timeout
+            timeout: 180000, // 180 second timeout
+            // Force the Node `http` adapter (server-side, API-key-bearing provider) —
+            // never the XHR/fetch adapter axios auto-selects under jsdom, which fails
+            // real external HTTPS with ERR_NETWORK.
+            adapter: 'http'
           }
         ),
         this.constructor.name,

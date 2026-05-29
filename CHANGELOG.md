@@ -1,3 +1,26 @@
+## [2.30.1] - 2026-05-29
+
+### fix(inceptron,requesty): pin axios to the Node `http` adapter
+
+The `InceptronProvider` and `RequestyProvider` issued their `axios.post` without an
+explicit adapter. axios auto-selects the **XHR/fetch** adapter whenever
+`XMLHttpRequest` exists — which is the case under a **jsdom** test environment
+(common for consumers running server code through Vitest/Jest with
+`environment: 'jsdom'`). The XHR adapter cannot complete real external HTTPS
+requests there and fails with a generic **`ERR_NETWORK` ("Network Error", no
+response)**, masking the real status. This silently broke every call through both
+providers in such environments.
+
+Both providers now pass **`adapter: 'http'`** to `axios.post`. These are
+server-side, Bearer-API-key-bearing providers — they must never use a browser
+transport. Native Node `http`/`https` is now used regardless of whether
+`XMLHttpRequest` is present, so real HTTP status codes (401/429/400/…) surface
+correctly again. Vertex/Bedrock were unaffected (they use their own SDKs).
+
+#### Tests
+
+- `inceptron-provider.test.ts` — new `transport` guard asserting `config.adapter === 'http'`. Full suite green (572 tests).
+
 ## [2.30.0] - 2026-05-29
 
 ### feat(inceptron): add Inceptron provider via OpenAI-compatible API

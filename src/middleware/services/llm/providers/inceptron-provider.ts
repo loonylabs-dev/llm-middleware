@@ -220,7 +220,12 @@ export class InceptronProvider extends BaseLLMProvider {
         () => axios.post<InceptronAPIResponse>(
           url,
           requestPayload,
-          { headers, timeout }
+          // Force the Node `http` adapter. This is a server-side provider carrying a
+          // Bearer API key — it must never use axios's XHR/fetch adapter, which axios
+          // auto-selects whenever XMLHttpRequest exists (e.g. under a jsdom test env)
+          // and which fails real external HTTPS with a generic ERR_NETWORK
+          // ("Network Error", no response).
+          { headers, timeout, adapter: 'http' }
         ),
         this.constructor.name,
         options.retry

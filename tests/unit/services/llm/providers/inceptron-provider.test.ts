@@ -112,6 +112,17 @@ describe('InceptronProvider', () => {
     });
   });
 
+  describe('transport', () => {
+    it("forces the Node 'http' adapter (server-side, API-key-bearing — never XHR/fetch)", async () => {
+      // axios auto-selects the XHR/fetch adapter when XMLHttpRequest exists (e.g. a
+      // jsdom test env), which fails real external HTTPS with ERR_NETWORK. Pinning
+      // the http adapter keeps this provider working regardless of the JS environment.
+      await provider.callWithSystemMessage('p', 's', { authToken: 'k', model: MODEL });
+      const config = mockedAxios.post.mock.calls[0][2] as any;
+      expect(config.adapter).toBe('http');
+    });
+  });
+
   describe('request payload', () => {
     it('should place the system message first, then the user message', async () => {
       await provider.callWithSystemMessage('my prompt', 'my system', { authToken: 'k', model: MODEL });
