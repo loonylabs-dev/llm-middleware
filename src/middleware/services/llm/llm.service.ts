@@ -14,6 +14,8 @@ import { AzureOpenAIProvider } from './providers/azure-openai-provider';
 import { InceptronProvider } from './providers/inceptron-provider';
 import { LLMProvider, CommonLLMOptions, CommonLLMResponse } from './types';
 import { MultimodalContent } from './types/multimodal.types';
+import { applyModelSafetyProfile } from './model-safety-profiles';
+import { logger } from '../../shared/utils/logging.utils';
 
 export interface LLMServiceOptions {
   /** Configuration for the Vertex AI provider (e.g., region rotation). */
@@ -99,7 +101,7 @@ export class LLMService {
   ): Promise<CommonLLMResponse | null> {
     const provider = options.provider || this.defaultProvider;
     const providerInstance = this.getProvider(provider);
-    return providerInstance.callWithSystemMessage(userPrompt, systemMessage, options);
+    return providerInstance.callWithSystemMessage(userPrompt, systemMessage, this.applySafety(options));
   }
 
   /**
@@ -112,7 +114,36 @@ export class LLMService {
   ): Promise<CommonLLMResponse | null> {
     const provider = options.provider || this.defaultProvider;
     const providerInstance = this.getProvider(provider);
-    return providerInstance.call(prompt, options);
+    return providerInstance.call(prompt, this.applySafety(options));
+  }
+
+  /**
+   * Centrally enforce per-model safety envelopes (see model-safety-profiles.ts)
+   * for every provider: clamp reasoning_effort up to the model's floor and
+   * temperature down to its ceiling, so a fragile model (e.g. GLM-5.1) cannot be
+   * driven into degeneration regardless of which consumer / use case called it.
+   * Only ever moves values toward the safe envelope; logs whenever it fires.
+   */
+  private applySafety<T extends CommonLLMOptions & { provider?: LLMProvider }>(options: T): T {
+    const safe = applyModelSafetyProfile({
+      model: options.model,
+      temperature: options.temperature,
+      reasoningEffort: options.reasoningEffort,
+    });
+    if (!safe.clamped.reasoningEffort && !safe.clamped.temperature) {
+      return options;
+    }
+    logger.warn('Applied model safety profile (params clamped to safe envelope)', {
+      context: 'LLMService',
+      metadata: {
+        model: options.model,
+        profile: safe.profile?.match,
+        reasoningEffort: safe.clamped.reasoningEffort,
+        temperature: safe.clamped.temperature,
+        note: safe.profile?.note,
+      },
+    });
+    return { ...options, temperature: safe.temperature, reasoningEffort: safe.reasoningEffort };
   }
 
   /**

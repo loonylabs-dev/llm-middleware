@@ -1,6 +1,9 @@
 // Main LLM Service
 export * from './llm.service';
 
+// Per-model safety profiles (intrinsic operating envelopes, enforced in LLMService)
+export * from './model-safety-profiles';
+
 // Types
 export * from './types';
 

@@ -1,3 +1,39 @@
+## [2.31.0] - 2026-05-30
+
+### feat(llm): declarative per-model safety profiles (intrinsic operating envelopes)
+
+Some models have an **intrinsic safe operating envelope** — outside it they
+degenerate regardless of who calls them (garbled multi-script output, runaway
+repetition, empty content, leaked reasoning markers). This is a property of the
+model / serving stack, not of any consumer, so the knowledge now lives in the
+middleware and is enforced **centrally in `LLMService`** for every provider.
+
+#### What Changed
+
+- New `model-safety-profiles.ts`: declarative `MODEL_SAFETY_PROFILES` map +
+  `applyModelSafetyProfile()` / `findModelSafetyProfile()` (exported from the
+  package). Each profile may set:
+  - `minReasoningEffort` — requested effort is **raised up** to this floor
+    (applies even when `reasoningEffort` is omitted).
+  - `maxTemperature` — requested temperature is **lowered down** to this ceiling.
+  The clamp only ever moves values *toward* the safe envelope and logs a `warn`
+  whenever it fires. It is **not** for API-format differences (those stay in the
+  providers, e.g. Gemini `thinkingBudget` vs `thinkingLevel`).
+- `LLMService.call()` / `callWithSystemMessage()` apply the matching profile to
+  the options before dispatching to the provider.
+- First entry: **`glm-5.1`** → `minReasoningEffort: 'low'`, `maxTemperature: 0.7`
+  (GLM-5.1-FP8 returns empty content at `reasoning='none'` and degenerates at
+  `temperature ≥ 1.0`; verified 2026-05-30, see `docs/INCEPTRON.md`).
+
+Consumers no longer need to re-implement these per-model clamps; they may still
+pass stricter values. Additive and backward-compatible — unprofiled models are
+untouched.
+
+#### Tests
+
+- `model-safety-profiles.test.ts` — 10 tests (pure clamp logic + `LLMService`
+  chokepoint enforcement). Full suite green (582 tests).
+
 ## [2.30.1] - 2026-05-29
 
 ### fix(inceptron,requesty): pin axios to the Node `http` adapter
