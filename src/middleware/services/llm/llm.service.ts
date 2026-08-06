@@ -12,6 +12,7 @@ import { VertexAIProvider, VertexAIProviderConfig } from './providers/gemini';
 import { BedrockProvider } from './providers/bedrock-provider';
 import { AzureOpenAIProvider } from './providers/azure-openai-provider';
 import { InceptronProvider } from './providers/inceptron-provider';
+import { MiniMaxProvider } from './providers/minimax-provider';
 import { LLMProvider, CommonLLMOptions, CommonLLMResponse } from './types';
 import { MultimodalContent } from './types/multimodal.types';
 import { applyModelSafetyProfile } from './model-safety-profiles';
@@ -37,6 +38,7 @@ export class LLMService {
     this.providers.set(LLMProvider.BEDROCK, new BedrockProvider());
     this.providers.set(LLMProvider.AZURE_OPENAI, new AzureOpenAIProvider());
     this.providers.set(LLMProvider.INCEPTRON, new InceptronProvider());
+    this.providers.set(LLMProvider.MINIMAX, new MiniMaxProvider());
   }
 
   /**

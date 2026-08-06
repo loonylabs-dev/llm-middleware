@@ -13,3 +13,4 @@ export * from './vertex-ai.types';
 export * from './bedrock.types';
 export * from './azure-openai.types';
 export * from './inceptron.types';
+export * from './minimax.types';

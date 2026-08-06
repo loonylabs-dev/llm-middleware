@@ -65,9 +65,16 @@ switch (providerName) {
     baseUrl = process.env.INCEPTRON_BASE_URL;  // optional; provider has a default
     break;
 
+  case 'minimax':
+    provider = LLMProvider.MINIMAX;
+    modelName = process.env.MINIMAX_MODEL || 'MiniMax-M3';
+    apiKey = process.env.MINIMAX_API_KEY;
+    baseUrl = process.env.MINIMAX_BASE_URL;  // optional; provider has a default
+    break;
+
   default:
     console.error(`❌ Unknown provider: ${providerName}`);
-    console.log('Available providers: ollama, anthropic, requesty, bedrock, azure, inceptron');
+    console.log('Available providers: ollama, anthropic, requesty, bedrock, azure, inceptron, minimax');
     process.exit(1);
 }
 

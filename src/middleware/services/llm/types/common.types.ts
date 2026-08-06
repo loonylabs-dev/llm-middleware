@@ -173,7 +173,10 @@ export enum LLMProvider {
   /** Azure OpenAI / Microsoft Foundry - api-key auth via OpenAI-compatible v1 route, EU data-zone support */
   AZURE_OPENAI = 'azure_openai',
   /** Inceptron (Inceptron AB, Sweden) - Bearer token auth via OpenAI-compatible API, per-model EU residency */
-  INCEPTRON = 'inceptron'
+  INCEPTRON = 'inceptron',
+
+  /** MiniMax direct API (api.minimax.io) — OpenAI-compatible, inline <think>. */
+  MINIMAX = 'minimax'
 }
 
 /**

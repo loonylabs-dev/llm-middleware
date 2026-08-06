@@ -1,3 +1,80 @@
+## [2.32.0] - 2026-08-06
+
+### feat(llm): MiniMax provider for the direct API — with the thinking it cannot switch off
+
+MiniMax models were already reachable through **Bedrock** (Converse, native
+`reasoningContent`) and **Inceptron** (OpenRouter style, `message.reasoning`).
+Missing was MiniMax's **own** API at `https://api.minimax.io/v1`, and it behaves
+differently from both — which is why this is a provider and not a base-URL
+override.
+
+#### What Changed
+
+- New `minimax-provider.ts` (`LLMProvider.MINIMAX`) + `minimax.types.ts`.
+  OpenAI-compatible Chat Completions, Bearer auth, wire format as
+  Requesty/Inceptron. Env: `MINIMAX_API_KEY`, `MINIMAX_MODEL` (default
+  `MiniMax-M3`), `MINIMAX_BASE_URL`.
+- `ThinkingExtractorFactory.forModel()` now recognises `minimax` (previously
+  only `deepseek` / `-r1` / `qwq`).
+
+#### 🚨 Reasoning arrives inline, and there is no toggle
+
+`message` carries exactly `role` and `content`; the reasoning sits INSIDE
+`content` as a `<think>…</think>` block. **Live-verified against `MiniMax-M3`
+before the code was written** — three attempts to suppress it, all failed:
+
+| attempt | result |
+|---|---|
+| `reasoning_effort: 'none'` | HTTP 200, block still there — with **more** reasoning tokens than without it (20 vs 12) |
+| `response_format: {type:'json_object'}` | HTTP 200, answer still wrapped in `<think>` |
+| system message "no chain-of-thought" | ignored |
+
+This matches what the middleware already recorded for the Bedrock path
+(`bedrock-reasoning.factory.ts`: `noop-minimax`, *"always-on interleaved
+thinking, no toggle"*).
+
+Consequences, all deliberate:
+
+- The provider sends **neither** `reasoning_effort` **nor** `response_format`.
+  Sending them would be a promise the model does not keep, and `json_object`
+  alongside a prompt asking for a JSON *array* puts two contradictory
+  constraints on the model.
+- A caller passing `reasoningEffort` gets a `warn` rather than a silent drop —
+  a swallowed wish is indistinguishable from a granted one.
+- **Without the factory entry the NoOp extractor applies and the working notes
+  are prepended to every answer** — measured once at 43 % of the response.
+
+#### Token usage
+
+`completion_tokens_details.reasoning_tokens` → `TokenUsage.reasoningTokens`
+(**part of `completion_tokens`, not additional to it**),
+`prompt_tokens_details.cached_tokens` → `cacheMetadata.cacheReadTokens`.
+`total_characters` is a MiniMax extra and was 0 in every measured call. Cost is
+not computed here; consumers apply their own price-per-token.
+
+#### Other
+
+- Timeout defaults to **300 s** instead of 180 s: MiniMax always reasons, and
+  the reasoning tokens are produced *before* the first content token. Set, not
+  derived.
+- **HTTP 402 gets its own message** — an empty pay-as-you-go balance and an
+  exhausted token plan need different fixes.
+
+#### Why this belongs in the middleware
+
+A consumer lost an evening to a wrong lead: its prompt demanded "no
+chain-of-thought", its provider set `json_object`, both were silently ignored,
+and **nothing anywhere recorded what actually went over the wire**. The block
+was found only by dumping one fully rendered request and one raw response by
+hand. A provider should record what a model *does*, so the next consumer does
+not rediscover it.
+
+- Tests: `tests/unit/services/llm/providers/minimax-provider.test.ts` (12).
+  Fixtures are shaped after the live probe, not invented.
+- Docs: `docs/MINIMAX.md`
+
+---
+
 ## [2.31.0] - 2026-05-30
 
 ### feat(llm): declarative per-model safety profiles (intrinsic operating envelopes)

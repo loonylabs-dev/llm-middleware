@@ -78,7 +78,16 @@ export class ThinkingExtractorFactory {
     if (
       lowerModel.includes('deepseek') ||
       lowerModel.includes('-r1') ||
-      lowerModel.includes('qwq')
+      lowerModel.includes('qwq') ||
+      // 🚨 MiniMax reasons ALWAYS and returns the block inline in
+      // `message.content` — there is no `message.reasoning` (Inceptron style)
+      // and no `reasoningContent` (Bedrock style) to read it from.
+      // Live-verified against MiniMax-M3 on api.minimax.io/v1: neither
+      // `reasoning_effort: 'none'` nor `response_format: json_object` nor a
+      // system message forbidding chain-of-thought suppresses it. Without this
+      // line the NoOp extractor applies and the working notes are prepended to
+      // every answer — measured once at 43 % of the response.
+      lowerModel.includes('minimax')
     ) {
       return this.thinkTagInstance;
     }

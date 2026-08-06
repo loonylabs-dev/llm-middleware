@@ -137,6 +137,7 @@ test-results/
 
 # Claude Code specific files
 CLAUDE.md
+AGENTS.md
 .claude/settings.local.json
 .claude/claude-workflows/
 .claude/commands/
